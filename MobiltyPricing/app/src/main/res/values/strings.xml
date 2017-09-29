@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">MobiltyPricing</string>
+    <string name="password_message">Password</string>
+    <string name="signIn">sign in</string>
+</resources>
