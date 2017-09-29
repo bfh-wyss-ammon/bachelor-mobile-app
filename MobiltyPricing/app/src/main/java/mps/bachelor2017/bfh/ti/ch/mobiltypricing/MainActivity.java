@@ -7,6 +7,8 @@ import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
@@ -41,18 +43,54 @@ public class MainActivity extends AppCompatActivity {
 
         this.mButton = (Button) findViewById(R.id.signInButton);
         this.mUsername = (EditText) findViewById(R.id.username);
-        this.mPassword = (EditText) findViewById(R.id.username);
+        this.mPassword = (EditText) findViewById(R.id.password);
 
         int i = ContextCompat.checkSelfPermission(this, Manifest.permission.INTERNET);
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.INTERNET) == 0) {
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.INTERNET}, 2);
         }
 
+        this.mButton.setVisibility(View.INVISIBLE);
+
+        mPassword.addTextChangedListener(new MyTextWatcher());
+        mUsername.addTextChangedListener(new MyTextWatcher());
+
         this.mButton.setOnClickListener(v -> {
             Intent indent = new Intent(v.getContext(), LoginService.class);
-            indent.putExtra("username", mUsername.getText());
-            indent.putExtra("password", mPassword.getText());
+            indent.putExtra("username", mUsername.getText().toString());
+            indent.putExtra("password", mPassword.getText().toString());
             v.getContext().startService(indent);
         });
+    }
+
+    private class  MyTextWatcher implements TextWatcher {
+
+        @Override
+        public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+
+        }
+
+        @Override
+        public void onTextChanged(CharSequence s, int start, int before, int count) {
+
+        }
+
+        @Override
+        public void afterTextChanged(Editable s) {
+            setSignInButtonVisible();
+        }
+    }
+
+    private void setSignInButtonVisible() {
+        String username = mUsername.getText().toString();
+        String password = mPassword.getText().toString();
+
+        if(username != null && password != null && username.length() > 3 && password.length() > 3) {
+            this.mButton.setVisibility(View.VISIBLE);
+        }
+        else {
+            this.mButton.setVisibility(View.INVISIBLE);
+        }
+
     }
 }

@@ -56,9 +56,7 @@ public class LoginService extends Service {
         GsonBuilder builder = new GsonBuilder();
         builder.registerTypeAdapter(BigInteger.class, new BigIntegerGsonTypeAdapter());
         gson = builder.create();
-        // todo update
-        user = new User("test@user.ch", getHash("test"));
-
+        user = new User(intent.getStringExtra("username"), getHash(intent.getStringExtra("password")));
         queue = Volley.newRequestQueue(this);
         queue.add(new JsonObjectRequest(Request.Method.GET, authorityUrl + "/settings", null, new SettingsResponseListener(), new ErrorListener()));
 
