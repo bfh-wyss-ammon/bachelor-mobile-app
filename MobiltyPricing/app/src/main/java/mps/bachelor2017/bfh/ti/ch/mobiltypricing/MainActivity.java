@@ -3,13 +3,21 @@ package mps.bachelor2017.bfh.ti.ch.mobiltypricing;
 import android.Manifest;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.gesture.Gesture;
+import android.gesture.GestureLibraries;
+import android.gesture.GestureLibrary;
+import android.gesture.GestureOverlayView;
+import android.gesture.Prediction;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
+import android.support.v4.view.VelocityTrackerCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.util.Log;
+import android.view.MotionEvent;
+import android.view.VelocityTracker;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
@@ -25,6 +33,7 @@ import com.android.volley.toolbox.Volley;
 import com.google.gson.Gson;
 
 import java.io.Console;
+import java.util.ArrayList;
 
 import settings.DefaultSettings;
 import settings.Settings;
@@ -35,6 +44,10 @@ public class MainActivity extends AppCompatActivity {
     private EditText mUsername;
     private EditText mPassword;
     private Gson gson = new Gson();
+    private VelocityTracker mVelocityTracker = null;
+    private GestureLibrary gestureLibrary = null;
+    private GestureOverlayView gestureOverlayView;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -61,6 +74,24 @@ public class MainActivity extends AppCompatActivity {
             indent.putExtra("password", mPassword.getText().toString());
             v.getContext().startService(indent);
         });
+
+        gestureOverlayView = (GestureOverlayView)findViewById(R.id.gestures);
+        gestureOverlayView.setGestureVisible(false);
+        gestureLibrary = GestureLibraries.fromRawResource(this, R.raw.gestures);
+        gestureLibrary.load();
+
+        gestureOverlayView.addOnGesturePerformedListener(new MyGesutrePerformedListener());
+    }
+
+    private class MyGesutrePerformedListener implements GestureOverlayView.OnGesturePerformedListener {
+
+        @Override
+        public void onGesturePerformed(GestureOverlayView overlay, Gesture gesture) {
+            ArrayList<Prediction> prediction = gestureLibrary.recognize(gesture);
+            if(prediction.size() > 0){
+               Log.v("main", "detecd");
+            }
+        }
     }
 
     private class  MyTextWatcher implements TextWatcher {

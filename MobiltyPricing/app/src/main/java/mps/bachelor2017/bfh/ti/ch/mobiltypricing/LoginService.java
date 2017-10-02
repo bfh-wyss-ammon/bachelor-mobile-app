@@ -42,7 +42,7 @@ import util.JoinHelper;
  */
 
 public class LoginService extends Service {
-    private String authorityUrl = "http://192.168.1.100:4567";
+    private String authorityUrl = "http://laptop:10000";
     private Gson gson;
     private RequestQueue queue;
     private User user;
