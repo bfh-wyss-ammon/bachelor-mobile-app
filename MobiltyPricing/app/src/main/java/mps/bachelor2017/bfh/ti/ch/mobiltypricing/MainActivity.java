@@ -89,7 +89,8 @@ public class MainActivity extends AppCompatActivity {
         public void onGesturePerformed(GestureOverlayView overlay, Gesture gesture) {
             ArrayList<Prediction> prediction = gestureLibrary.recognize(gesture);
             if(prediction.size() > 0){
-               Log.v("main", "detecd");
+                Intent indent = new Intent(overlay.getContext(), SettingsActivity.class);
+               startActivity(indent);
             }
         }
     }

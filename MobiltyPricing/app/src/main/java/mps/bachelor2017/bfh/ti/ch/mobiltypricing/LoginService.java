@@ -1,12 +1,10 @@
 package mps.bachelor2017.bfh.ti.ch.mobiltypricing;
-
 import android.app.Service;
 import android.content.Intent;
 import android.os.IBinder;
 import android.support.annotation.Nullable;
 import android.util.Base64;
 import android.util.Log;
-
 import com.android.volley.AuthFailureError;
 import com.android.volley.NetworkResponse;
 import com.android.volley.Request;
@@ -18,23 +16,17 @@ import com.android.volley.toolbox.StringRequest;
 import com.android.volley.toolbox.Volley;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-
 import org.json.JSONObject;
-
 import java.math.BigInteger;
-import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.HashMap;
 import java.util.Map;
-
-
 import keys.PublicKey;
 import keys.SecretKey;
 import requests.JoinRequest;
 import responses.JoinResponse;
 import settings.DefaultSettings;
-import settings.Settings;
 import util.JoinHelper;
 
 /**
