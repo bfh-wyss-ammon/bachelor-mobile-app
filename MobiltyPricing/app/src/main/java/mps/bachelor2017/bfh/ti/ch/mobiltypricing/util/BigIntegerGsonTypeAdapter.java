@@ -1,4 +1,4 @@
-package mps.bachelor2017.bfh.ti.ch.mobiltypricing;
+package mps.bachelor2017.bfh.ti.ch.mobiltypricing.util;
 
 import com.google.gson.TypeAdapter;
 import com.google.gson.stream.JsonReader;

@@ -15,9 +15,9 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <activity android:name=".SettingsActivity">
+        <activity android:name=".ActivityInfo">
 
         </activity>
-        <service android:name=".LoginService" />
+        <service android:name=".services.LoginService" />
     </application>
 </manifest>
