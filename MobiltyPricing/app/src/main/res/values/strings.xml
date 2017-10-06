@@ -2,4 +2,5 @@
     <string name="app_name">MobiltyPricing</string>
     <string name="password_message">Password</string>
     <string name="signIn">sign in</string>
+    <string name="ipKey">ipKey</string>
 </resources>
