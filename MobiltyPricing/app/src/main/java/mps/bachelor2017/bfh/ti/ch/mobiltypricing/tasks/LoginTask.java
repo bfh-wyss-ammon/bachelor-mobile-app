@@ -1,9 +1,13 @@
 package mps.bachelor2017.bfh.ti.ch.mobiltypricing.tasks;
 
+import android.content.Context;
+import android.content.SharedPreferences;
 import android.os.AsyncTask;
 import android.util.Log;
 
 import com.android.volley.AuthFailureError;
+import com.android.volley.DefaultRetryPolicy;
+import com.android.volley.NetworkError;
 import com.android.volley.NetworkResponse;
 import com.android.volley.Request;
 import com.android.volley.RequestQueue;
@@ -15,12 +19,12 @@ import com.google.gson.Gson;
 import org.json.JSONObject;
 import java.util.HashMap;
 import java.util.Map;
-import mps.bachelor2017.bfh.ti.ch.mobiltypricing.MainActivity;
+
 import mps.bachelor2017.bfh.ti.ch.mobiltypricing.data.MobileGroup;
 import mps.bachelor2017.bfh.ti.ch.mobiltypricing.data.MobileSecretKey;
 import mps.bachelor2017.bfh.ti.ch.mobiltypricing.data.User;
-import mps.bachelor2017.bfh.ti.ch.mobiltypricing.services.LoginService;
 import mps.bachelor2017.bfh.ti.ch.mobiltypricing.util.Const;
+import mps.bachelor2017.bfh.ti.ch.mobiltypricing.util.CustomObjectRequest;
 import mps.bachelor2017.bfh.ti.ch.mobiltypricing.util.CustomRequest;
 import requests.JoinRequest;
 import responses.JoinResponse;
@@ -32,16 +36,37 @@ import util.JoinHelper;
  */
 
 public class LoginTask extends AsyncTask<User, Void, Void> {
-    private MainActivity activity;
+
+    public enum LoginStatus {
+        LoginSuccessfull,
+        AuthenticatenSuccessfull,
+        SecretKeyCalculated,
+        SendJoinRequest,
+        ReceivedJoinResponse,
+        AlreadyLoggedIn,
+        AuthenticatenError,
+        NetworkError,
+        GroupJoinError,
+        GroupConfirmError,
+        OtherError
+    }
+
+    public interface OnStatusChangedListener {
+        void onStatusChanged(LoginStatus status);
+    }
+
+    private OnStatusChangedListener mListener;
     private String token;
     private MobileSecretKey secretKey;
     private static final DefaultSettings settings = new DefaultSettings();
     private static final Gson gson = new Gson();
     private RequestQueue queue;
     private MobileGroup group;
+    private Context mContext;
 
-    public LoginTask(MainActivity activity) {
-        this.activity = activity;
+    public LoginTask(OnStatusChangedListener listener, Context context) {
+        this.mListener = listener;
+        this.mContext = context;
     }
 
     @Override
@@ -51,8 +76,8 @@ public class LoginTask extends AsyncTask<User, Void, Void> {
         }
 
         User user = users[0];
-        queue = Volley.newRequestQueue(this.activity.getApplicationContext());
-        CustomRequest request = new CustomRequest(Request.Method.POST, Const.AuthorityUrl + "/login", null, new LoginResponseListener(), new LoginErrorListener(), null, user) {
+        queue = Volley.newRequestQueue(mContext);
+        CustomObjectRequest request = new CustomObjectRequest(Request.Method.POST, Const.AuthorityUrl + "/login", null, new LoginResponseListener(), new LoginErrorListener(), null, user) {
             @Override
             protected Response<JSONObject> parseNetworkResponse(NetworkResponse response) {
                 token = response.headers.get(Const.TokenHeader);
@@ -73,15 +98,15 @@ public class LoginTask extends AsyncTask<User, Void, Void> {
     private class LoginResponseListener implements Response.Listener {
         @Override
         public void onResponse(Object response) {
-            activity.runOnUiThread(() -> activity.setAuthenticationStatus(true, ""));
+            mListener.onStatusChanged(LoginStatus.AuthenticatenSuccessfull);
             group = gson.fromJson(response.toString(), MobileGroup.class);
             secretKey = new MobileSecretKey();
-            activity.runOnUiThread(() -> activity.setSecretKeyCalculated(true));
+            mListener.onStatusChanged(LoginStatus.SecretKeyCalculated);
 
             JoinHelper.init(settings, group.getPublicKey(), secretKey);
             JoinRequest joinRequest = new JoinRequest(secretKey);
-            activity.runOnUiThread(() -> activity.setJoinRequest(true));
-            CustomRequest request = new CustomRequest(Request.Method.POST, Const.AuthorityUrl + "/membership", null, new groupJoinResponseListener(), new GroupJoinErrorListener(), token, joinRequest);
+            mListener.onStatusChanged(LoginStatus.SendJoinRequest);
+            CustomObjectRequest request = new CustomObjectRequest(Request.Method.POST, Const.AuthorityUrl + "/membership", null, new groupJoinResponseListener(), new GroupJoinErrorListener(), token, joinRequest);
 
             queue.add(request);
 
@@ -90,19 +115,11 @@ public class LoginTask extends AsyncTask<User, Void, Void> {
     private class groupJoinResponseListener implements Response.Listener {
         @Override
         public void onResponse(Object response) {
-            JoinResponse joinResponse = gson.fromJson(((JSONObject) response).toString(), JoinResponse.class);
-            activity.runOnUiThread(() -> activity.setJoinResponse(true));
+            JoinResponse joinResponse = gson.fromJson(response.toString(), JoinResponse.class);
+            mListener.onStatusChanged(LoginStatus.ReceivedJoinResponse);
             secretKey.maintainResponse(joinResponse);
-            // todo persist
 
-            StringRequest request = new StringRequest(Request.Method.PUT, Const.AuthorityUrl + "/membership", new GroupConfirmResponseListener(), new GroupConfirmErrorListener()) {
-                @Override
-                public Map<String, String> getHeaders() throws AuthFailureError {
-                    Map<String, String> headers = new HashMap<String, String>();
-                    headers.put(Const.TokenHeader, token);
-                    return headers;
-                }
-            };
+            CustomRequest request = new CustomRequest(Request.Method.PUT, Const.AuthorityUrl + "/membership", new GroupConfirmResponseListener(), new GroupConfirmErrorListener(), token, null);
             queue.add(request);
         }
     }
@@ -110,7 +127,14 @@ public class LoginTask extends AsyncTask<User, Void, Void> {
     private class GroupConfirmResponseListener implements Response.Listener {
         @Override
         public void onResponse(Object response) {
-            activity.runOnUiThread(() -> activity.setConfirm(true, group, secretKey));
+            SharedPreferences settings = mContext.getSharedPreferences(Const.PreferenceKey, 0);
+            group.save(settings);
+            secretKey.save(settings);
+            SharedPreferences.Editor editor = settings.edit();
+            editor.putBoolean("status", true);
+            editor.apply();
+
+            mListener.onStatusChanged(LoginStatus.LoginSuccessfull);
             Log.v("LoginService", "login done!");
         }
     }
@@ -118,7 +142,7 @@ public class LoginTask extends AsyncTask<User, Void, Void> {
     private class GroupJoinErrorListener implements Response.ErrorListener {
         @Override
         public void onErrorResponse(VolleyError error) {
-            activity.runOnUiThread(() -> activity.setJoinResponse(true));
+            mListener.onStatusChanged(LoginStatus.GroupJoinError);
             error.printStackTrace();
         }
     }
@@ -127,10 +151,13 @@ public class LoginTask extends AsyncTask<User, Void, Void> {
         @Override
         public void onErrorResponse(VolleyError error) {
             if(error instanceof  AuthFailureError) {
-                activity.runOnUiThread(() -> activity.setAuthenticationStatus(false, "authentication error"));
+                mListener.onStatusChanged(LoginStatus.AuthenticatenError);
+            }
+            else if(error instanceof NetworkError) {
+                mListener.onStatusChanged(LoginStatus.NetworkError);
             }
             else {
-                activity.runOnUiThread(() -> activity.setAuthenticationStatus(false, "you are already logged in"));
+                mListener.onStatusChanged(LoginStatus.AlreadyLoggedIn);
             }
             error.printStackTrace();
         }
@@ -139,7 +166,7 @@ public class LoginTask extends AsyncTask<User, Void, Void> {
     private class GroupConfirmErrorListener implements Response.ErrorListener {
         @Override
         public void onErrorResponse(VolleyError error) {
-            activity.runOnUiThread(() -> activity.setConfirm(false, null, null));
+            mListener.onStatusChanged(LoginStatus.GroupConfirmError);
             error.printStackTrace();
         }
     }

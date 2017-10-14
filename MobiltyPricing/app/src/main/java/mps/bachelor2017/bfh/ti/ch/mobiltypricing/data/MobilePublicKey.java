@@ -2,24 +2,36 @@ package mps.bachelor2017.bfh.ti.ch.mobiltypricing.data;
 
 import android.content.SharedPreferences;
 
+import java.io.Serializable;
 import java.math.BigInteger;
 
+import interfaces.HashValue;
 import keys.PublicKey;
 
 /**
  * Created by Pascal on 05.10.2017.
  */
 
-public class MobilePublicKey implements PublicKey {
+public class MobilePublicKey implements PublicKey, Serializable {
+    @HashValue
     private BigInteger n;
+    @HashValue
     private BigInteger a;
+    @HashValue
     private BigInteger g;
+    @HashValue
     private BigInteger h;
+    @HashValue
     private BigInteger w;
+    @HashValue
     private BigInteger bigQ;
+    @HashValue
     private BigInteger bigP;
+    @HashValue
     private BigInteger bigF;
+    @HashValue
     private BigInteger bigG;
+    @HashValue
     private BigInteger bigH;
 
     public MobilePublicKey() {
