@@ -1,7 +1,6 @@
 package mps.bachelor2017.bfh.ti.ch.mobiltypricing;
 
 import android.Manifest;
-import android.annotation.SuppressLint;
 import android.app.Fragment;
 import android.app.FragmentManager;
 import android.app.FragmentTransaction;
@@ -19,18 +18,12 @@ import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.NotificationCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
-import android.util.Log;
 
-import com.google.gson.Gson;
-
-import mps.bachelor2017.bfh.ti.ch.mobiltypricing.data.MobileGroup;
-import mps.bachelor2017.bfh.ti.ch.mobiltypricing.data.MobileSecretKey;
 import mps.bachelor2017.bfh.ti.ch.mobiltypricing.fragments.DriveFragment;
 import mps.bachelor2017.bfh.ti.ch.mobiltypricing.fragments.LoginFragment;
 import mps.bachelor2017.bfh.ti.ch.mobiltypricing.fragments.MissingPermissionFragment;
 import mps.bachelor2017.bfh.ti.ch.mobiltypricing.services.TrackService;
 import mps.bachelor2017.bfh.ti.ch.mobiltypricing.util.Const;
-import mps.bachelor2017.bfh.ti.ch.mobiltypricing.util.NotificationHelper;
 
 import static android.support.v4.content.PermissionChecker.PERMISSION_DENIED;
 
