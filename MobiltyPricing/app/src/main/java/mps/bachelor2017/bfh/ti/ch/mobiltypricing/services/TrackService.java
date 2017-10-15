@@ -40,6 +40,7 @@ import mps.bachelor2017.bfh.ti.ch.mobiltypricing.data.MobileSecretKey;
 import mps.bachelor2017.bfh.ti.ch.mobiltypricing.tasks.SendTupleTask;
 import mps.bachelor2017.bfh.ti.ch.mobiltypricing.util.Const;
 
+
 /**
  * Created by Pascal on 13.10.2017.
  */
@@ -139,6 +140,7 @@ public class TrackService extends Service implements GoogleApiClient.ConnectionC
             Log.v("TrackService", "permission denied");
             return;
         }
+
         LocationServices.FusedLocationApi.requestLocationUpdates(mGoogleApiClient, mLocationRequest, this);
 
         timer = new Timer();
