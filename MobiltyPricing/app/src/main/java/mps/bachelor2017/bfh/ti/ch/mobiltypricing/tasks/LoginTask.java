@@ -65,6 +65,7 @@ public class LoginTask extends AsyncTask<User, Void, Void> {
     private Context mContext;
 
     public LoginTask(OnStatusChangedListener listener, Context context) {
+
         this.mListener = listener;
         this.mContext = context;
     }
@@ -84,6 +85,11 @@ public class LoginTask extends AsyncTask<User, Void, Void> {
                 return super.parseNetworkResponse(response);
             }
         };
+
+        request.setRetryPolicy(new DefaultRetryPolicy(
+                100,
+                0,
+                DefaultRetryPolicy.DEFAULT_BACKOFF_MULT));
 
         queue.add(request);
 
@@ -108,6 +114,11 @@ public class LoginTask extends AsyncTask<User, Void, Void> {
             mListener.onStatusChanged(LoginStatus.SendJoinRequest);
             CustomObjectRequest request = new CustomObjectRequest(Request.Method.POST, Const.AuthorityUrl + "/membership", null, new groupJoinResponseListener(), new GroupJoinErrorListener(), token, joinRequest);
 
+
+            request.setRetryPolicy(new DefaultRetryPolicy(
+                    0,
+                    DefaultRetryPolicy.DEFAULT_MAX_RETRIES,
+                    DefaultRetryPolicy.DEFAULT_BACKOFF_MULT));
             queue.add(request);
 
         }
@@ -120,6 +131,10 @@ public class LoginTask extends AsyncTask<User, Void, Void> {
             secretKey.maintainResponse(joinResponse);
 
             CustomRequest request = new CustomRequest(Request.Method.PUT, Const.AuthorityUrl + "/membership", new GroupConfirmResponseListener(), new GroupConfirmErrorListener(), token, null);
+            request.setRetryPolicy(new DefaultRetryPolicy(
+                    0,
+                    DefaultRetryPolicy.DEFAULT_MAX_RETRIES,
+                    DefaultRetryPolicy.DEFAULT_BACKOFF_MULT));
             queue.add(request);
         }
     }
