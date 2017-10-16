@@ -13,6 +13,7 @@ import android.os.IBinder;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v4.app.ActivityCompat;
+import android.support.v4.content.ContextCompat;
 import android.util.Log;
 import android.widget.Toast;
 
@@ -35,10 +36,12 @@ import java.util.TimerTask;
 
 import data.Tuple;
 import interfaces.HashValue;
+import mps.bachelor2017.bfh.ti.ch.mobiltypricing.MainActivity;
 import mps.bachelor2017.bfh.ti.ch.mobiltypricing.data.MobileGroup;
 import mps.bachelor2017.bfh.ti.ch.mobiltypricing.data.MobileSecretKey;
 import mps.bachelor2017.bfh.ti.ch.mobiltypricing.tasks.SendTupleTask;
 import mps.bachelor2017.bfh.ti.ch.mobiltypricing.util.Const;
+import mps.bachelor2017.bfh.ti.ch.mobiltypricing.util.ServiceCallbacks;
 
 
 /**
@@ -47,12 +50,17 @@ import mps.bachelor2017.bfh.ti.ch.mobiltypricing.util.Const;
 
 public class TrackService extends Service implements GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener, LocationListener, SendTupleTask.SendTupleTaskListener {
 
+    // Registered callbacks
+    private ServiceCallbacks serviceCallbacks;
     private enum Status {
         initialized,
         connected,
         suspended,
         error
     }
+
+    //used for check if run method is called for the first time
+    private boolean firstRun = true;
 
     private final IBinder mBinder = new TrackBinder();
 
@@ -127,7 +135,9 @@ public class TrackService extends Service implements GoogleApiClient.ConnectionC
         Log.v("TrackService", "connection failed");
         this.mStatus = Status.error;
     }
-
+    public void setCallbacks(ServiceCallbacks callbacks) {
+        serviceCallbacks = callbacks;
+    }
 
     @Override
     public void onLocationChanged(Location location) {
@@ -135,9 +145,21 @@ public class TrackService extends Service implements GoogleApiClient.ConnectionC
         mLocation = location;
     }
 
+    private boolean gpsPermissionIsOk(){
+        if(ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) return false;
+        if(ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) return false;
+     return true;
+    }
+
+
     public void start() {
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+        boolean internetOk = false;
+        if (serviceCallbacks != null) {
+            internetOk = serviceCallbacks.internetAndGPSPermissionIsOk();
+        }
+        if (! (gpsPermissionIsOk() && internetOk) ) {
             Log.v("TrackService", "permission denied");
+            serviceCallbacks.createNotification(MainActivity.NOPERMISSION_NOTIFICATION, "Can't start driving. No permission.", "Permission problem.", false,true);
             return;
         }
 
@@ -147,8 +169,22 @@ public class TrackService extends Service implements GoogleApiClient.ConnectionC
         timer.scheduleAtFixedRate(new TimerTask() {
             @Override
             public void run() {
-                if (mLocation == null) {
+                if(!(gpsPermissionIsOk() && serviceCallbacks.internetAndGPSPermissionIsOk())){
+                    stop();
+                    serviceCallbacks.createNotification(MainActivity.NOPERMISSION_NOTIFICATION, "Can't start driving. No permission.", "Permission problem.", false,true);
+                    serviceCallbacks.stopDriving();
+
+                    return;
+                }
+                if (mLocation == null && firstRun==true) {
+                    firstRun=false;
                     Log.v("TrackService", "no location jet");
+                    return;
+                }else if(mLocation == null && firstRun==false){
+                    Log.v("TrackService", "no location data. stop driving.");
+                    stop();
+                    serviceCallbacks.createNotification(MainActivity.NOPERMISSION_NOTIFICATION, "Can't start driving. No location data.", "GPS problem", false,true);
+                    serviceCallbacks.stopDriving();
                     return;
                 }
                 Tuple tuple = new Tuple();
