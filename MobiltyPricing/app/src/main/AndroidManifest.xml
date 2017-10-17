@@ -2,6 +2,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="mps.bachelor2017.bfh.ti.ch.mobiltypricing">
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-feature android:name="android.hardware.location.gps" />
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
@@ -16,8 +18,7 @@
             </intent-filter>
         </activity>
         <activity android:name=".ActivityInfo">
-
         </activity>
-        <service android:name=".services.LoginService" />
+        <service android:name=".services.TrackService"></service>
     </application>
 </manifest>

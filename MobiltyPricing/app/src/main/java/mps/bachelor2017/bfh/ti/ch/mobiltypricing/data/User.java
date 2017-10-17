@@ -5,15 +5,15 @@ package mps.bachelor2017.bfh.ti.ch.mobiltypricing.data;
  */
 
 public class User {
-    private String mail;
+    private String id;
     private String password;
 
     public User() {
 
     }
 
-    public User(String mail, String password) {
-        this.mail = mail;
+    public User(String id, String password) {
+        this.id = id;
         this.password = password;
     }
 
@@ -25,11 +25,11 @@ public class User {
         this.password = password;
     }
 
-    public String getMail() {
-        return mail;
+    public String getId() {
+        return id;
     }
 
-    public void setMail(String mail) {
-        this.mail = mail;
+    public void setId(String id) {
+        this.id = id;
     }
 }

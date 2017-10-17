@@ -38,7 +38,7 @@ public class MobileGroup {
     public void save(SharedPreferences settings) {
         SharedPreferences.Editor editor = settings.edit();
         editor.putInt("groupId", groupId);
-        editor.commit();
+        editor.apply();
         publicKey.save(settings);
     }
 }

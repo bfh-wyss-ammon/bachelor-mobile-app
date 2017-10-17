@@ -4,7 +4,6 @@ import com.android.volley.AuthFailureError;
 import com.android.volley.DefaultRetryPolicy;
 import com.android.volley.Response;
 import com.android.volley.toolbox.JsonObjectRequest;
-import com.android.volley.toolbox.StringRequest;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
@@ -20,7 +19,7 @@ import gson.BigIntegerTypeAdapter;
  * Created by Pascal on 05.10.2017.
  */
 
-public class CustomRequest extends StringRequest {
+public class CustomObjectRequest extends JsonObjectRequest {
 
     private static final Gson gson;
 
@@ -33,22 +32,22 @@ public class CustomRequest extends StringRequest {
     private final String token;
     private final Object bodyToSend;
 
-    public CustomRequest(int method, String url, Response.Listener listener, Response.ErrorListener errorListener, Object bodyToSend) {
-        super(method, url, listener, errorListener);
+    public CustomObjectRequest(int method, String url, JSONObject jsonRequest, Response.Listener<JSONObject> listener, Response.ErrorListener errorListener, Object bodyToSend) {
+        super(method, url, jsonRequest, listener, errorListener);
         this.token = null;
         this.bodyToSend = bodyToSend;
         this.setRetryPolicy(new DefaultRetryPolicy(0, DefaultRetryPolicy.DEFAULT_MAX_RETRIES, DefaultRetryPolicy.DEFAULT_BACKOFF_MULT));
     }
 
-    public CustomRequest(int method, String url, Response.Listener listener, Response.ErrorListener errorListener, String token, Object bodyToSend) {
-        super(method, url, listener, errorListener);
+    public CustomObjectRequest(int method, String url, JSONObject jsonRequest, Response.Listener<JSONObject> listener, Response.ErrorListener errorListener, String token, Object bodyToSend) {
+        super(method, url, jsonRequest, listener, errorListener);
         this.token = token;
         this.bodyToSend = bodyToSend;
         this.setRetryPolicy(new DefaultRetryPolicy(0, DefaultRetryPolicy.DEFAULT_MAX_RETRIES, DefaultRetryPolicy.DEFAULT_BACKOFF_MULT));
     }
 
-    public CustomRequest(String url, Response.Listener listener, Response.ErrorListener errorListener, String token, Object bodyToSend) {
-        super(url, listener, errorListener);
+    public CustomObjectRequest(String url, JSONObject jsonRequest, Response.Listener<JSONObject> listener, Response.ErrorListener errorListener, String token, Object bodyToSend) {
+        super(url, jsonRequest, listener, errorListener);
         this.token = token;
         this.bodyToSend = bodyToSend;
         this.setRetryPolicy(new DefaultRetryPolicy(0, DefaultRetryPolicy.DEFAULT_MAX_RETRIES, DefaultRetryPolicy.DEFAULT_BACKOFF_MULT));

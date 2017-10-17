@@ -28,6 +28,7 @@ public class MobileSecretKey implements SecretKey {
         w = new BigInteger(settings.getString("secretKey_w", "0"));
         y = new BigInteger(settings.getString("secretKey_y", "0"));
         e = new BigInteger(settings.getString("secretKey_e", "0"));
+        r = new BigInteger(settings.getString("secretKey_r", "0"));
         bigE = new BigInteger(settings.getString("secretKey_bigE", "0"));
         bigY = new BigInteger(settings.getString("secretKey_bigY", "0"));
         commitment = new BigInteger(settings.getString("secretKey_commitment", "0"));
@@ -131,6 +132,6 @@ public class MobileSecretKey implements SecretKey {
         editor.putString("secretKey_bigE", bigE.toString());
         editor.putString("secretKey_bigY", bigY.toString());
         editor.putString("secretKey_commitment", commitment.toString());
-        editor.commit();
+        editor.apply();
     }
 }
