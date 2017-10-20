@@ -4,9 +4,6 @@ import android.Manifest;
 import android.app.Fragment;
 import android.app.FragmentManager;
 import android.app.FragmentTransaction;
-import android.app.Notification;
-import android.app.NotificationManager;
-import android.app.PendingIntent;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
@@ -18,7 +15,6 @@ import android.os.Bundle;
 import android.os.IBinder;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
-import android.support.v4.app.NotificationCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
@@ -30,11 +26,11 @@ import mps.bachelor2017.bfh.ti.ch.mobiltypricing.fragments.LoginFragment;
 import mps.bachelor2017.bfh.ti.ch.mobiltypricing.fragments.MissingPermissionFragment;
 import mps.bachelor2017.bfh.ti.ch.mobiltypricing.services.TrackService;
 import mps.bachelor2017.bfh.ti.ch.mobiltypricing.util.Const;
-import mps.bachelor2017.bfh.ti.ch.mobiltypricing.util.ServiceCallbacks;
+import mps.bachelor2017.bfh.ti.ch.mobiltypricing.util.TrackServiceCallbacks;
 
 import static android.support.v4.content.PermissionChecker.PERMISSION_DENIED;
 
-public class MainActivity extends AppCompatActivity implements ServiceCallbacks {
+public class MainActivity extends AppCompatActivity implements TrackServiceCallbacks {
 
     public static final int DRIVING_NOTIFICATION = 001;
     public static final int NOPERMISSION_NOTIFICATION = 002;
@@ -48,66 +44,16 @@ public class MainActivity extends AppCompatActivity implements ServiceCallbacks 
     private boolean mBound;
 
     @Override
-    public void createNotification(int id, String title, String text, boolean ongoing, boolean lightsAndVibrate) {
-
-        NotificationCompat.Builder mBuilder;
-        if (lightsAndVibrate) {
-
-            mBuilder =
-                    new NotificationCompat.Builder(getApplicationContext())
-                            .setSmallIcon(R.drawable.ic_stat_na)
-                            .setContentTitle(title)
-                            .setOngoing(ongoing)
-                            .setContentText(text)
-                            .setLights(0xFF0000FF, 100, 3000)
-                            .setPriority(Notification.PRIORITY_DEFAULT)
-                            .setVibrate(new long[]{1000, 1000, 1000, 1000, 1000});
-
-        } else {
-            mBuilder =
-                    new NotificationCompat.Builder(getApplicationContext())
-                            .setSmallIcon(R.drawable.ic_stat_na)
-                            .setContentTitle(title)
-                            .setOngoing(ongoing)
-                            .setContentText(text);
-        }
-
-
-        Intent resultIntent = new Intent(getApplicationContext(), MainActivity.class);
-
-
-        PendingIntent resultPendingIntent =
-                PendingIntent.getActivity(
-                        getApplicationContext(),
-                        0,
-                        resultIntent,
-                        PendingIntent.FLAG_UPDATE_CURRENT
-                );
-        mBuilder.setContentIntent(resultPendingIntent);
-        NotificationManager mNotifyMgr =
-                (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
-        mNotifyMgr.notify(id, mBuilder.build());
-
-
-    }
-
-    public void clearNotification(int id) {
-        NotificationManager notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-        notificationManager.cancel(id);
-    }
-
-    @Override
-    public boolean internetAndGPSPermissionIsOk() {
+    public boolean permissionCheck() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.INTERNET) == PERMISSION_DENIED){
             Log.v("V","internet perm not ok");
             return false;
-
         }
+
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED){
             Log.v("V","gps perm not ok");
             return false;
         }
-
 
         //check if we really have mobile data connection
         boolean mobileDataEnabled = false; // Assume disabled
@@ -142,7 +88,7 @@ public class MainActivity extends AppCompatActivity implements ServiceCallbacks 
         super.onCreate(savedInstanceState);
 
         // todo network and GPS check!
-        if (!internetAndGPSPermissionIsOk()) {
+        if (!permissionCheck()) {
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.INTERNET, Manifest.permission.ACCESS_FINE_LOCATION}, 1);
         }
 
@@ -205,32 +151,36 @@ public class MainActivity extends AppCompatActivity implements ServiceCallbacks 
         mDriveFragment.driveListener = new DriveFragment.DriveListener() {
             @Override
             public void start() {
-
                 mTrackService.start();
-                createNotification(MainActivity.DRIVING_NOTIFICATION, "Mobility Pricing is running", "You are currently driving", true, false);
-
             }
-
 
             @Override
             public void stop() {
                 mTrackService.stop();
-                clearNotification(MainActivity.DRIVING_NOTIFICATION);
             }
         };
         return mDriveFragment;
     }
 
     @Override
-    public void stopDriving(){
-        //TBD: The Start/stop button doesn't see when the service stops
-        mTrackService.stop();
-        clearNotification(MainActivity.DRIVING_NOTIFICATION);
+    public void onStop(){
+        // todo
+        super.onStop();
+    }
+
+    @Override
+    public void onError(String Message) {
+
+    }
+
+    @Override
+    public void onStart() {
+        // todo
+        super.onStart();
     }
 
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
-
         for (int grantResult : grantResults) {
             if (grantResult == PERMISSION_DENIED) {
                 FragmentTransaction fragmentTransaction = mFragmentManager.beginTransaction();

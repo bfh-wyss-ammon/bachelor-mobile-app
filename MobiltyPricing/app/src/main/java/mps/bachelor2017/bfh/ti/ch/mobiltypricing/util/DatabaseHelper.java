@@ -5,14 +5,21 @@ import android.content.Context;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
+import android.util.Base64;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 
 import data.Tuple;
+import mps.bachelor2017.bfh.ti.ch.mobiltypricing.data.DbTuple;
+import util.HashHelper;
+
+import static android.util.Base64.NO_WRAP;
 
 /**
- * Created by isabelcosta on 15.10.17.
+ * Created by gabriel wyss on 15.10.17.
  */
 
 public class DatabaseHelper extends SQLiteOpenHelper {
@@ -27,8 +34,6 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     public static final String TUPLE_COLUMN_CREATED = "created";
     public static final String TUPLE_COLUMN_HASH = "hash";
     public static final String TUPLE_COLUMN_UPLOADED = "uploaded";
-
-
 
     public DatabaseHelper(Context context) {
         super(context, DATABASE_NAME , null, DATABASE_VERSION);
@@ -53,7 +58,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         onCreate(db);
     }
 
-    public boolean insertTuple(Tuple tuple, String hash) {
+    public boolean insertTuple(Tuple tuple) {
         SQLiteDatabase db = getWritableDatabase();
         ContentValues contentValues = new ContentValues();
 
@@ -61,7 +66,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         contentValues.put(TUPLE_COLUMN_LONGITUDE, tuple.getLongitude().doubleValue());
         contentValues.put(TUPLE_COLUMN_LATITUDE, tuple.getLatitude().doubleValue());
         contentValues.put(TUPLE_COLUMN_CREATED,tuple.getCreated().getTime());
-        contentValues.put(TUPLE_COLUMN_HASH, hash);
+        contentValues.put(TUPLE_COLUMN_HASH, Base64.encodeToString(HashHelper.getHash(tuple.getSignature()), NO_WRAP));
         contentValues.put(TUPLE_COLUMN_UPLOADED, 0);
         db.insert(TUPLE_TABLE_NAME, null, contentValues);
         return true;
@@ -95,10 +100,38 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         return res;
     }
 
-    public Cursor getNotUploadedTuples() {
+    public List<DbTuple> getNotUploadedTuples() {
         SQLiteDatabase db = this.getReadableDatabase();
-        Cursor res = db.rawQuery( "SELECT * FROM " + TUPLE_TABLE_NAME + " WHERE " +
+
+        List<DbTuple> res = new ArrayList<DbTuple>();
+
+        Cursor c = db.rawQuery( "SELECT * FROM " + TUPLE_TABLE_NAME + " WHERE " +
                 TUPLE_COLUMN_UPLOADED + "=?", new String[] { "0" } );
+
+        c.moveToFirst();
+        while (c.moveToNext()) {
+            Tuple tuple = new Tuple();
+
+            int createdIndex = c.getColumnIndex(DatabaseHelper.TUPLE_COLUMN_CREATED);
+            long created = c.getInt(createdIndex);
+            tuple.setCreated(new Date(created));
+
+            int longitudeIndex = c.getColumnIndex(DatabaseHelper.TUPLE_COLUMN_LONGITUDE);
+            BigDecimal longitude = new BigDecimal(c.getDouble(longitudeIndex));
+            tuple.setLongitude(longitude);
+
+            int latitudeIndex = c.getColumnIndex(DatabaseHelper.TUPLE_COLUMN_LATITUDE);
+            BigDecimal latitude = new BigDecimal(c.getDouble(latitudeIndex));
+            tuple.setLatitude(latitude);
+
+            int groupIndex = c.getColumnIndex(DatabaseHelper.TUPLE_COLUMN_GROUPID);
+            tuple.setGroupId(c.getInt(groupIndex));
+
+            int hashIndex = c.getColumnIndex(DatabaseHelper.TUPLE_COLUMN_HASH);
+            String hash = c.getString(hashIndex);
+
+            res.add(new DbTuple(hash, false, tuple));
+        }
         return res;
     }
     public Cursor getUploadedTuples() {
