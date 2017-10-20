@@ -3,22 +3,19 @@ package mps.bachelor2017.bfh.ti.ch.mobiltypricing.tasks;
 import android.content.Context;
 import android.os.AsyncTask;
 
-import com.android.volley.DefaultRetryPolicy;
 import com.android.volley.Request;
 import com.android.volley.RequestQueue;
 import com.android.volley.Response;
 import com.android.volley.VolleyError;
-import com.android.volley.toolbox.StringRequest;
 import com.android.volley.toolbox.Volley;
 
-import data.Tuple;
 import demo.DemoSignature;
+import mps.bachelor2017.bfh.ti.ch.mobiltypricing.data.MobileTuple;
 import mps.bachelor2017.bfh.ti.ch.mobiltypricing.data.MobileGroup;
 import mps.bachelor2017.bfh.ti.ch.mobiltypricing.data.MobileSecretKey;
 import mps.bachelor2017.bfh.ti.ch.mobiltypricing.util.Const;
-import mps.bachelor2017.bfh.ti.ch.mobiltypricing.util.CustomObjectRequest;
 import mps.bachelor2017.bfh.ti.ch.mobiltypricing.util.CustomRequest;
-import mps.bachelor2017.bfh.ti.ch.mobiltypricing.util.Helper;
+import mps.bachelor2017.bfh.ti.ch.mobiltypricing.util.DatabaseHelper;
 import util.HashHelper;
 import util.SignHelper;
 
@@ -26,7 +23,7 @@ import util.SignHelper;
  * Created by Pascal on 05.10.2017.
  */
 
-public class SendTupleTask extends AsyncTask<Tuple, Void, Void> {
+public class SyncTupleTask extends AsyncTask<MobileTuple, Void, Void> {
 
     public interface SendTupleTaskListener {
         void onTupleSendError();
@@ -35,10 +32,12 @@ public class SendTupleTask extends AsyncTask<Tuple, Void, Void> {
 
     private SendTupleTaskListener mListener;
     private Context mContext;
+    private DatabaseHelper dbHelper;
+    private MobileTuple dbTuple;
     private MobileGroup mGroup;
     private MobileSecretKey mMobileSecretKey;
 
-    public SendTupleTask(SendTupleTaskListener listener, Context context, MobileGroup group, MobileSecretKey mobileSecretKey) {
+    public SyncTupleTask(SendTupleTaskListener listener, Context context, MobileGroup group, MobileSecretKey mobileSecretKey) {
         this.mListener = listener;
         this.mContext = context;
         this.mGroup = group;
@@ -46,35 +45,24 @@ public class SendTupleTask extends AsyncTask<Tuple, Void, Void> {
     }
 
     @Override
-    protected Void doInBackground(Tuple... tuples) {
+    protected Void doInBackground(MobileTuple... tuples) {
+        dbHelper = new DatabaseHelper(mContext);
         if (tuples.length != 1) {
             return null;
         }
+        dbTuple = tuples[0];
 
-        Tuple tuple = tuples[0];
+
         RequestQueue queue = Volley.newRequestQueue(mContext);
-
-        tuple.setGroupId(mGroup.getGroupId());
-
-        DemoSignature signature = new DemoSignature();
-
-        SignHelper.sign(mMobileSecretKey, mGroup.getPublicKey(), HashHelper.getHash(tuple), signature);
-        tuple.setSignature(signature);
-
-        CustomRequest request = new CustomRequest(Request.Method.POST, Const.ProviderUrl + "/tuple", new TupleResponseListener(), new TupleConfirmErrorListener(), null, tuple);
-
-        request.setRetryPolicy(new DefaultRetryPolicy(
-                0,
-                DefaultRetryPolicy.DEFAULT_MAX_RETRIES,
-                DefaultRetryPolicy.DEFAULT_BACKOFF_MULT));
+        CustomRequest request = new CustomRequest(Request.Method.POST, Const.ProviderUrl + "/tuple", new TupleResponseListener(), new TupleConfirmErrorListener(), null, dbTuple);
         queue.add(request);
-
         return null;
     }
 
     private class TupleResponseListener implements Response.Listener {
         @Override
         public void onResponse(Object response) {
+           dbHelper.setTupleIsUploaded(dbTuple.getHash());
            mListener.onTupleSendSuccessfull();
         }
     }
