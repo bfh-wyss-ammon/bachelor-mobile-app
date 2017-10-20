@@ -37,21 +37,21 @@ public class CustomRequest extends StringRequest {
         super(method, url, listener, errorListener);
         this.token = null;
         this.bodyToSend = bodyToSend;
-        this.setRetryPolicy(new DefaultRetryPolicy(0, DefaultRetryPolicy.DEFAULT_MAX_RETRIES, DefaultRetryPolicy.DEFAULT_BACKOFF_MULT));
+        this.setRetryPolicy(new DefaultRetryPolicy(800, DefaultRetryPolicy.DEFAULT_MAX_RETRIES, DefaultRetryPolicy.DEFAULT_BACKOFF_MULT));
     }
 
     public CustomRequest(int method, String url, Response.Listener listener, Response.ErrorListener errorListener, String token, Object bodyToSend) {
         super(method, url, listener, errorListener);
         this.token = token;
         this.bodyToSend = bodyToSend;
-        this.setRetryPolicy(new DefaultRetryPolicy(0, DefaultRetryPolicy.DEFAULT_MAX_RETRIES, DefaultRetryPolicy.DEFAULT_BACKOFF_MULT));
+        this.setRetryPolicy(new DefaultRetryPolicy(800, DefaultRetryPolicy.DEFAULT_MAX_RETRIES, DefaultRetryPolicy.DEFAULT_BACKOFF_MULT));
     }
 
     public CustomRequest(String url, Response.Listener listener, Response.ErrorListener errorListener, String token, Object bodyToSend) {
         super(url, listener, errorListener);
         this.token = token;
         this.bodyToSend = bodyToSend;
-        this.setRetryPolicy(new DefaultRetryPolicy(0, DefaultRetryPolicy.DEFAULT_MAX_RETRIES, DefaultRetryPolicy.DEFAULT_BACKOFF_MULT));
+        this.setRetryPolicy(new DefaultRetryPolicy(800, DefaultRetryPolicy.DEFAULT_MAX_RETRIES, DefaultRetryPolicy.DEFAULT_BACKOFF_MULT));
     }
 
     @Override

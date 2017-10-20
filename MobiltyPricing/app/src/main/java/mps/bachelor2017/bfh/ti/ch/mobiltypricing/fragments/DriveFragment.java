@@ -26,6 +26,12 @@ public class DriveFragment extends Fragment {
         public void stop();
     }
 
+    public enum Status {
+        ERROR,
+        READY,
+        DRIVING
+    }
+
     private View view;
     private Button mDriveButton;
     private Button mLogOutButton;
@@ -40,6 +46,7 @@ public class DriveFragment extends Fragment {
         view = inflater.inflate(R.layout.fragment_drive, container, false);
         this.mLogOutButton = (Button) view.findViewById(R.id.logoutButton);
         this.mDriveButton = (Button) view.findViewById(R.id.driveButton);
+
 
         this.mDriveButton.setOnClickListener(v -> {
             if(driveListener != null) {
@@ -72,5 +79,14 @@ public class DriveFragment extends Fragment {
         });
 
         return view;
+    }
+
+    public void update(Status status) {
+        if(status == Status.DRIVING || status == Status.READY) {
+          //  mDriveButton.setVisibility(View.VISIBLE);
+        }
+        else {
+            // this.mLogOutButton.setVisibility(View.VISIBLE);
+        }
     }
 }
