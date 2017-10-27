@@ -25,6 +25,8 @@ import util.SignHelper;
 
 public class SyncTupleTask extends AsyncTask<MobileTuple, Void, Void> {
 
+
+
     public interface SendTupleTaskListener {
         void onTupleSendError();
         void onTupleSendSuccessfull();
@@ -34,14 +36,10 @@ public class SyncTupleTask extends AsyncTask<MobileTuple, Void, Void> {
     private Context mContext;
     private DatabaseHelper dbHelper;
     private MobileTuple dbTuple;
-    private MobileGroup mGroup;
-    private MobileSecretKey mMobileSecretKey;
 
-    public SyncTupleTask(SendTupleTaskListener listener, Context context, MobileGroup group, MobileSecretKey mobileSecretKey) {
+    public SyncTupleTask(SendTupleTaskListener listener, Context context) {
         this.mListener = listener;
         this.mContext = context;
-        this.mGroup = group;
-        this.mMobileSecretKey = mobileSecretKey;
     }
 
     @Override
@@ -51,8 +49,6 @@ public class SyncTupleTask extends AsyncTask<MobileTuple, Void, Void> {
             return null;
         }
         dbTuple = tuples[0];
-
-
         RequestQueue queue = Volley.newRequestQueue(mContext);
         CustomRequest request = new CustomRequest(Request.Method.POST, Const.ProviderUrl + "/tuple", new TupleResponseListener(), new TupleConfirmErrorListener(), null, dbTuple);
         queue.add(request);
@@ -62,7 +58,7 @@ public class SyncTupleTask extends AsyncTask<MobileTuple, Void, Void> {
     private class TupleResponseListener implements Response.Listener {
         @Override
         public void onResponse(Object response) {
-           dbHelper.setTupleIsUploaded(dbTuple.getHash());
+           dbHelper.setTupleStatus(dbTuple.getHash(), MobileTuple.TupleStatus.REMOTE);
            mListener.onTupleSendSuccessfull();
         }
     }

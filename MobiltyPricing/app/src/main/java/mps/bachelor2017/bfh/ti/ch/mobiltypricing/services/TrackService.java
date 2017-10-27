@@ -24,7 +24,6 @@ import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.location.LocationListener;
 import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationServices;
-import com.google.gson.Gson;
 
 import java.lang.reflect.Method;
 import java.math.BigDecimal;
@@ -34,14 +33,14 @@ import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
 
-import data.Tuple;
-import mps.bachelor2017.bfh.ti.ch.mobiltypricing.data.MobileSignature;
 import mps.bachelor2017.bfh.ti.ch.mobiltypricing.data.MobileTuple;
 import mps.bachelor2017.bfh.ti.ch.mobiltypricing.data.MobileGroup;
 import mps.bachelor2017.bfh.ti.ch.mobiltypricing.data.MobileSecretKey;
 import mps.bachelor2017.bfh.ti.ch.mobiltypricing.tasks.SyncTupleTask;
+import mps.bachelor2017.bfh.ti.ch.mobiltypricing.tasks.TollTask;
 import mps.bachelor2017.bfh.ti.ch.mobiltypricing.util.Const;
 import mps.bachelor2017.bfh.ti.ch.mobiltypricing.util.DatabaseHelper;
+import mps.bachelor2017.bfh.ti.ch.mobiltypricing.util.Error;
 import util.HashHelper;
 import util.SignHelper;
 
@@ -53,7 +52,7 @@ import static android.util.Base64.NO_WRAP;
  * Created by Pascal on 13.10.2017.
  */
 
-public class TrackService extends Service implements GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener, LocationListener, SyncTupleTask.SendTupleTaskListener {
+public class TrackService extends Service implements GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener, LocationListener, SyncTupleTask.SendTupleTaskListener, TollTask.TollTaskListener {
 
     public interface TrackServiceEvents {
         void onStatusChanged(TrackServiceStatus status);
@@ -69,6 +68,8 @@ public class TrackService extends Service implements GoogleApiClient.ConnectionC
         ERROR_DURING_SYNC,
         GPS_SIGNAL_TRACKED,
         GPS_SIGNAL_SYNC,
+        PAY_SUCCESSFULL,
+        PAY_ERROR
     }
 
     public class TrackBinder extends Binder {
@@ -215,11 +216,11 @@ public class TrackService extends Service implements GoogleApiClient.ConnectionC
                 }
                 if (syncCount == 0) {
                     syncCount = -1;
-                    List<MobileTuple> tuples = dbHelper.getNotUploadedTuples();
+                    List<MobileTuple> tuples = dbHelper.getTuplesByStatus(MobileTuple.TupleStatus.LOCAL);
                     syncCount = tuples.size();
 
                     tuples.forEach(t -> {
-                        SyncTupleTask snycTupleTask = new SyncTupleTask(TrackService.this, getApplicationContext(), mMobileGroup, mMobileSecretKey);
+                        SyncTupleTask snycTupleTask = new SyncTupleTask(TrackService.this, getApplicationContext());
                         snycTupleTask.execute(t);
                     });
                 }
@@ -231,6 +232,8 @@ public class TrackService extends Service implements GoogleApiClient.ConnectionC
         LocationServices.FusedLocationApi.removeLocationUpdates(mGoogleApiClient, this);
         isTracking = false;
         timer.cancel();
+        TollTask tk = new TollTask(this, getApplicationContext(), mMobileGroup, mMobileSecretKey);
+        tk.execute();
     }
 
     @Override
@@ -252,6 +255,17 @@ public class TrackService extends Service implements GoogleApiClient.ConnectionC
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED)
             return false;
         return true;
+    }
+
+    @Override
+    public void onTollError(Error error) {
+
+        mEvent.onStatusChanged(TrackServiceStatus.PAY_ERROR);
+    }
+
+    @Override
+    public void onTollSuccessfull() {
+        mEvent.onStatusChanged(TrackServiceStatus.PAY_SUCCESSFULL);
     }
 
     private boolean hasNetworkPermission() {

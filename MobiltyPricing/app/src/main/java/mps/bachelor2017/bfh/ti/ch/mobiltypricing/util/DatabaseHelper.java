@@ -5,27 +5,22 @@ import android.content.Context;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
-import android.util.Base64;
 import android.util.Log;
 
-import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.math.RoundingMode;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
-import java.util.Set;
 
-import data.Tuple;
 import mps.bachelor2017.bfh.ti.ch.mobiltypricing.data.MobileSignature;
 import mps.bachelor2017.bfh.ti.ch.mobiltypricing.data.MobileTuple;
 import mps.bachelor2017.bfh.ti.ch.mobiltypricing.interfaces.DBClass;
 import mps.bachelor2017.bfh.ti.ch.mobiltypricing.interfaces.DBField;
-import util.HashHelper;
-
-import static android.util.Base64.NO_WRAP;
 
 /**
  * Created by gabriel wyss on 15.10.17.
@@ -37,25 +32,19 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
     private static final int DATABASE_VERSION = 1;
     private static final String TUPLE_TABLE_NAME = "tuple";
-    private static final String TUPLE_COLUMN_ID = "_id";
-    private static final String TUPLE_COLUMN_GROUPID = "groupId";
-    private static final String TUPLE_COLUMN_LONGITUDE = "longitude";
-    private static final String TUPLE_COLUMN_LATITUDE = "latitude";
-    private static final String TUPLE_COLUMN_CREATED = "created";
     private static final String TUPLE_COLUMN_HASH = "hash";
-    private static final String TUPLE_COLUMN_UPLOADED = "uploaded";
+
+    private static final SimpleDateFormat periodeFormat = new SimpleDateFormat("dd-MM-yyyy");
 
     public DatabaseHelper(Context context) {
-        super(context, DATABASE_NAME , null, DATABASE_VERSION);
+        super(context, DATABASE_NAME, null, DATABASE_VERSION);
     }
 
     @Override
     public void onCreate(SQLiteDatabase db) {
 
-        if(MobileTuple.class.isAnnotationPresent(DBClass.class))
-        {
-           String tableName = ((DBClass)MobileTuple.class.getAnnotation(DBClass.class)).Name();
-
+        if (MobileTuple.class.isAnnotationPresent(DBClass.class)) {
+            String tableName = ((DBClass) MobileTuple.class.getAnnotation(DBClass.class)).Name();
 
             String fieldQuery = " (";
             for (Field field : getTupleFields()) {
@@ -72,26 +61,36 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                 } else if (field.getType() == BigInteger.class) {
                     fieldType = "TEXT";
                 }
+                else if (field.getType() == Date.class) {
+                    fieldType = "NUMERIC";
+                }
+                else if (field.getType().getSuperclass() == Enum.class) {
+                    fieldType = "TEXT";
+                }
                 fieldQuery += fieldName + " " + fieldType + (isPrimary ? "  PRIMARY KEY" : "") + ", ";
             }
-            fieldQuery = fieldQuery.substring(0, fieldQuery.length() -2) + ")";
+            fieldQuery = fieldQuery.substring(0, fieldQuery.length() - 2) + ")";
             db.execSQL("CREATE TABLE " + tableName + fieldQuery);
         }
     }
+
     private List<Field> tupleFields;
+
     private List<Field> getTupleFields() {
-        if(tupleFields == null) {
+        if (tupleFields == null) {
             tupleFields = new ArrayList<Field>();
             for (Field field : MobileTuple.class.getDeclaredFields()) {
                 if (field.isAnnotationPresent(DBField.class)) {
                     tupleFields.add(field);
                 }
-            };
+            }
+            ;
             for (Field field : MobileSignature.class.getDeclaredFields()) {
                 if (field.isAnnotationPresent(DBField.class)) {
                     tupleFields.add(field);
                 }
-            };
+            }
+            ;
         }
         return tupleFields;
     }
@@ -106,8 +105,6 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         for (Field field : object.getClass().getDeclaredFields()) {
             if (field.isAnnotationPresent(DBField.class)) {
                 DBField dbField = field.getAnnotation(DBField.class);
-
-
                 field.setAccessible(true);
                 if (dbField.PrimaryKey()) {
                     continue;
@@ -127,6 +124,9 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                     } else if (data.getClass() == Date.class) {
                         contentValues.put(dbField.Name(), ((Date) data).getTime());
                     }
+                    else if (data.getClass().getSuperclass() == Enum.class) {
+                        contentValues.put(dbField.Name(), data.toString());
+                    }
                 } catch (Exception ex) {
                     // todo error handling
                 }
@@ -134,7 +134,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         }
     }
 
-    private void setValue(Object data,  Cursor cursor) {
+    private void setValue(Object data, Cursor cursor) {
         for (Field field : data.getClass().getDeclaredFields()) {
             if (field.isAnnotationPresent(DBField.class)) {
                 DBField dbField = field.getAnnotation(DBField.class);
@@ -155,6 +155,9 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                     } else if (field.getType() == Date.class) {
                         field.set(data, new Date(cursor.getLong(fieldIndex)));
                     }
+                    else if (field.getType().getSuperclass() == Enum.class) {
+                        field.set(data, Enum.valueOf(field.getType().asSubclass(Enum.class), cursor.getString(fieldIndex)));
+                    }
                 } catch (Exception ex) {
                     // todo error handling
                 }
@@ -165,7 +168,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     public boolean save(MobileTuple tuple) {
         SQLiteDatabase db = getWritableDatabase();
         ContentValues contentValues = new ContentValues();
-        if(tuple.getClass().isAnnotationPresent(DBClass.class)) {
+        if (tuple.getClass().isAnnotationPresent(DBClass.class)) {
             String tableName = ((DBClass) tuple.getClass().getAnnotation(DBClass.class)).Name();
             setValue(contentValues, tuple);
             setValue(contentValues, tuple.getSignature());
@@ -174,21 +177,21 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         return true;
     }
 
-    public boolean setTupleIsUploaded(String hash){
+    public boolean setTupleStatus(String hash, MobileTuple.TupleStatus status) {
         SQLiteDatabase db = this.getWritableDatabase();
         ContentValues contentValues = new ContentValues();
-        contentValues.put(TUPLE_COLUMN_UPLOADED, 1);
-        db.update(TUPLE_TABLE_NAME, contentValues, TUPLE_COLUMN_HASH + " = ? ", new String[] { hash } );
+        contentValues.put(Const.DbTupleStatusField, status.toString());
+        db.update(TUPLE_TABLE_NAME, contentValues, TUPLE_COLUMN_HASH + " = ? ", new String[]{hash});
         return true;
     }
 
-    public List<MobileTuple> getNotUploadedTuples() {
+    public List<MobileTuple> getTuplesByStatus(MobileTuple.TupleStatus status) {
         SQLiteDatabase db = this.getReadableDatabase();
 
         List<MobileTuple> res = new ArrayList<MobileTuple>();
 
-        Cursor c = db.rawQuery( "SELECT * FROM " + TUPLE_TABLE_NAME + " WHERE " +
-                TUPLE_COLUMN_UPLOADED + "=?", new String[] { "0" } );
+        Cursor c = db.rawQuery("SELECT * FROM " + TUPLE_TABLE_NAME + " WHERE " +
+                Const.DbTupleStatusField + "=?", new String[]{status.toString()});
 
         c.moveToFirst();
         while (c.moveToNext()) {
@@ -201,5 +204,38 @@ public class DatabaseHelper extends SQLiteOpenHelper {
             res.add(t);
         }
         return res;
+    }
+
+    public List<String> getTuplesHashesStatus(MobileTuple.TupleStatus status) {
+        SQLiteDatabase db = this.getReadableDatabase();
+
+        List<String> res = new ArrayList<>();
+
+        Cursor c = db.rawQuery("SELECT " + TUPLE_COLUMN_HASH + " FROM " + TUPLE_TABLE_NAME + " WHERE " +
+                Const.DbTupleStatusField + "=?", new String[]{status.toString()});
+
+        c.moveToFirst();
+        while (c.moveToNext()) {
+            res.add(c.getString(0));
+        }
+        return res;
+    }
+
+    // periode format: dd-MM-yyyy
+    public boolean hasRemoteTupleInPeriode(String periode) {
+        SQLiteDatabase db = this.getReadableDatabase();
+        try {
+
+            String query = "SELECT COUNT(*) FROM " + TUPLE_TABLE_NAME + " WHERE " + Const.DbTupleCreatedField + ">= ? AND " + Const.DbTupleStatusField + " =?";
+            String date = String.valueOf(periodeFormat.parse(periode).getTime());
+
+            Cursor c = db.rawQuery(query, new String[]{date, MobileTuple.TupleStatus.REMOTE.toString()});
+            c.moveToFirst();
+            int count = c.getInt(0);
+            return count > 0;
+        } catch (ParseException e) {
+            e.printStackTrace();
+        }
+        return false;
     }
 }
