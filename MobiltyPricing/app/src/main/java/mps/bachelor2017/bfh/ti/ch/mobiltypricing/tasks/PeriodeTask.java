@@ -5,11 +5,13 @@ import android.os.AsyncTask;
 import android.util.Base64;
 
 import com.android.volley.AuthFailureError;
+import com.android.volley.NetworkError;
 import com.android.volley.NetworkResponse;
 import com.android.volley.Request;
 import com.android.volley.RequestQueue;
 import com.android.volley.Response;
 import com.android.volley.VolleyError;
+import com.android.volley.toolbox.Volley;
 import com.google.gson.Gson;
 
 import org.json.JSONObject;
@@ -27,6 +29,7 @@ import mps.bachelor2017.bfh.ti.ch.mobiltypricing.util.CustomObjectRequest;
 import mps.bachelor2017.bfh.ti.ch.mobiltypricing.util.CustomRequest;
 import mps.bachelor2017.bfh.ti.ch.mobiltypricing.util.DatabaseHelper;
 import mps.bachelor2017.bfh.ti.ch.mobiltypricing.util.Error;
+import responses.JoinResponse;
 import signatures.Signature;
 import util.HashHelper;
 import util.SignHelper;
@@ -62,98 +65,104 @@ public class PeriodeTask extends AsyncTask<Void, Void, Void>  {
         mGroup = group;
         this.periode = periode;
         this.mobileSecretKey = mobileSecretKey;
+        queue = Volley.newRequestQueue(mContext);
     }
 
     @Override
     protected Void doInBackground(Void... params) {
 
-        String url = Const.ProviderUrl + "/invoiceitems/" + periode;
-
-        CustomRequest request = new CustomRequest(Request.Method.GET, url, new InvoiceItemsResponseListener(), new InvoiceItemsErrorListener(), null, null) {
-            @Override
-            protected Response<String> parseNetworkResponse(
-                    NetworkResponse response) {
-                session = response.headers.get(Const.SessionHeader);
-                return super.parseNetworkResponse(response);
-            }
-        };
-        queue.add(request);
         return null;
     }
 
-    class PayObject {
-        private int summe;
-        private String signature;
-
-        public PayObject() {
-        }
-
-        public PayObject(int summe, String signature) {
-            this.summe = summe;
-            this.signature = signature;
-        }
-
-        public int getSumme() {
-            return summe;
-        }
-
-        public void setSumme(int summe) {
-            this.summe = summe;
-        }
-
-        public String getSignature() {
-            return signature;
-        }
-
-        public void setSignature(String signature) {
-            this.signature = signature;
-        }
-    }
-
-    private class InvoiceItemsResponseListener implements Response.Listener {
-        @Override
-        public void onResponse(Object response) {
-            InvoiceItems invoiceItems =  gson.fromJson(response.toString(), InvoiceItems.class);
-
-            hashes = dbHelper.getTuplesHashesStatus(MobileTuple.TupleStatus.REMOTE);
-
-            int summe = 0;
-
-            for (String hash : hashes) {
-                if(invoiceItems.getItems().containsKey(hash)) {
-                    summe += invoiceItems.getItems().get(hash);
-                }
-            }
-
-            MobileSignature signature = new MobileSignature();
-
-            SignHelper.sign(mobileSecretKey, mGroup.getPublicKey(), HashHelper.getHash(invoiceItems.getSignature() + summe), signature);
-
-            PayObject payObject = new PayObject(summe, Base64.encodeToString(HashHelper.getHash(signature), NO_WRAP));
-
-            CustomRequest request = new CustomRequest(Request.Method.GET, Const.ProviderUrl + "/pay/" + session, new PayResponseListener(), new InvoiceItemsErrorListener(), null, payObject);
-            queue.add(request);
-
-        }
-    }
-    private class PayResponseListener implements Response.Listener {
-        @Override
-        public void onResponse(Object response) {
-            hashes.forEach(hash -> dbHelper.setTupleStatus(hash, MobileTuple.TupleStatus.PAID));
-            mListener.onPaySuccessfull();
-        }
-    }
-    private class PayErrorListener implements Response.ErrorListener {
+    private class ErrorListener implements Response.ErrorListener {
         @Override
         public void onErrorResponse(VolleyError error) {
-            mListener.onInvoiceError(Error.PERIODES_LOAD_ERROR);
+
+            error.printStackTrace();
+        }
+    }
+    private class ResponseListener implements Response.Listener {
+        @Override
+        public void onResponse(Object response) {
+            InvoiceItems invoiceItems = gson.fromJson(response.toString(), InvoiceItems.class);
         }
     }
 
-    private class InvoiceItemsErrorListener implements Response.ErrorListener {
-        @Override
-        public void onErrorResponse(VolleyError error) {
-            mListener.onInvoiceError(Error.PERIODES_LOAD_ERROR);
-        }
-    }
+//    class PayObject {
+//        private int summe;
+//        private String signature;
+//
+//        public PayObject() {
+//        }
+//
+//        public PayObject(int summe, String signature) {
+//            this.summe = summe;
+//            this.signature = signature;
+//        }
+//
+//        public int getSumme() {
+//            return summe;
+//        }
+//
+//        public void setSumme(int summe) {
+//            this.summe = summe;
+//        }
+//
+//        public String getSignature() {
+//            return signature;
+//        }
+//
+//        public void setSignature(String signature) {
+//            this.signature = signature;
+//        }
+//    }
+
+//    private class InvoiceItemsResponseListener implements Response.Listener {
+//        @Override
+//        public void onResponse(Object response) {
+//            InvoiceItems invoiceItems =  gson.fromJson(response.toString(), InvoiceItems.class);
+//
+//            hashes = dbHelper.getTuplesHashesStatus(MobileTuple.TupleStatus.REMOTE);
+
+//            int summe = 0;
+//
+//            for (String hash : hashes) {
+//                if(invoiceItems.getItems().containsKey(hash)) {
+//                    summe += invoiceItems.getItems().get(hash);
+//                }
+//            }
+//
+//            MobileSignature signature = new MobileSignature();
+//
+//            SignHelper.sign(mobileSecretKey, mGroup.getPublicKey(), HashHelper.getHash(invoiceItems.getSignature() + summe), signature);
+//
+//            PayObject payObject = new PayObject(summe, Base64.encodeToString(HashHelper.getHash(signature), NO_WRAP));
+//
+//            CustomRequest request = new CustomRequest(Request.Method.GET, Const.ProviderUrl + "/pay/" + session, new PayResponseListener(), new InvoiceItemsErrorListener(), null, payObject);
+//            queue.add(request);
+
+//        }
+//    }
+//    private class InvoiceItemsErrorListener implements Response.ErrorListener {
+//        @Override
+//        public void onErrorResponse(VolleyError error) {
+//            mListener.onInvoiceError(Error.PERIODES_LOAD_ERROR);
+//        }
+//    }
+//
+//    private class PayResponseListener implements Response.Listener {
+//        @Override
+//        public void onResponse(Object response) {
+//            hashes.forEach(hash -> dbHelper.setTupleStatus(hash, MobileTuple.TupleStatus.PAID));
+//            mListener.onPaySuccessfull();
+//        }
+//    }
+//    private class PayErrorListener implements Response.ErrorListener {
+//        @Override
+//        public void onErrorResponse(VolleyError error) {
+//            mListener.onInvoiceError(Error.PERIODES_LOAD_ERROR);
+//        }
+//    }
+
+
 }

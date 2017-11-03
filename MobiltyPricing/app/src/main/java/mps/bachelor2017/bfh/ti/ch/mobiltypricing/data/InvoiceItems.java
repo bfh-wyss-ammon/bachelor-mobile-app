@@ -10,6 +10,7 @@ public class InvoiceItems {
 
     private Map<String, Integer> items;
     private String signature;
+    private String sessionId;
 
     public InvoiceItems() {
 
@@ -29,5 +30,13 @@ public class InvoiceItems {
 
     public void setSignature(String signature) {
         this.signature = signature;
+    }
+
+    public String getSessionId() {
+        return sessionId;
+    }
+
+    public void setSessionId(String sessionId) {
+        this.sessionId = sessionId;
     }
 }

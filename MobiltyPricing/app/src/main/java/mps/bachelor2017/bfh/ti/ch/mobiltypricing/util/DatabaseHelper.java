@@ -194,7 +194,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                 Const.DbTupleStatusField + "=?", new String[]{status.toString()});
 
         c.moveToFirst();
-        while (c.moveToNext()) {
+        while(c.isAfterLast() == false){
             MobileTuple t = new MobileTuple();
             setValue(t, c);
 
@@ -202,6 +202,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
             setValue(ms, c);
             t.setSignature(ms);
             res.add(t);
+            c.moveToNext();
         }
         return res;
     }
@@ -215,21 +216,32 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                 Const.DbTupleStatusField + "=?", new String[]{status.toString()});
 
         c.moveToFirst();
-        while (c.moveToNext()) {
+        while(c.isAfterLast() == false){
             res.add(c.getString(0));
+            c.moveToNext();
         }
         return res;
     }
 
     // periode format: dd-MM-yyyy
-    public boolean hasRemoteTupleInPeriode(String periode) {
+    public boolean hasRemoteTupleInPeriode(String periode, String periodeB) {
         SQLiteDatabase db = this.getReadableDatabase();
         try {
+            Cursor c = null;
 
-            String query = "SELECT COUNT(*) FROM " + TUPLE_TABLE_NAME + " WHERE " + Const.DbTupleCreatedField + ">= ? AND " + Const.DbTupleStatusField + " =?";
-            String date = String.valueOf(periodeFormat.parse(periode).getTime());
+            if(periodeB == null) {
+                String query = "SELECT COUNT(*) FROM " + TUPLE_TABLE_NAME + " WHERE " + Const.DbTupleCreatedField + ">= ? AND " + Const.DbTupleStatusField + " =?";
+                String date = String.valueOf(periodeFormat.parse(periode).getTime());
 
-            Cursor c = db.rawQuery(query, new String[]{date, MobileTuple.TupleStatus.REMOTE.toString()});
+                c = db.rawQuery(query, new String[]{date, MobileTuple.TupleStatus.REMOTE.toString()});
+            }
+            else {
+                String query = "SELECT COUNT(*) FROM " + TUPLE_TABLE_NAME + " WHERE " + Const.DbTupleCreatedField + ">= ? AND "+ Const.DbTupleCreatedField + "< ? AND " + Const.DbTupleStatusField + " =?";
+                String date = String.valueOf(periodeFormat.parse(periode).getTime());
+                String dateB = String.valueOf(periodeFormat.parse(periode).getTime());
+
+                c = db.rawQuery(query, new String[]{date, dateB, MobileTuple.TupleStatus.REMOTE.toString()});
+            }
             c.moveToFirst();
             int count = c.getInt(0);
             return count > 0;

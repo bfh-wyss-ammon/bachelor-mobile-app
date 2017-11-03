@@ -202,8 +202,10 @@ public class TrackService extends Service implements GoogleApiClient.ConnectionC
                     isTracking = true;
                 }
                 MobileTuple tuple = new MobileTuple(mMobileGroup.getGroupId(), new BigDecimal(mLocation.getLatitude()).setScale(10, RoundingMode.HALF_UP), new BigDecimal(mLocation.getLongitude()).setScale(10, RoundingMode.HALF_UP), new Date());
-                SignHelper.sign(mMobileSecretKey, mMobileGroup.getPublicKey(), HashHelper.getHash(tuple), tuple.getSignature());
-                tuple.setHash(Base64.encodeToString(HashHelper.getHash(tuple.getSignature()), NO_WRAP));
+                byte[] hash =  HashHelper.getHash(tuple);
+                SignHelper.sign(mMobileSecretKey, mMobileGroup.getPublicKey(), hash, tuple.getSignature());
+
+                tuple.setHash(Base64.encodeToString(hash, NO_WRAP));
 
                 if (!dbHelper.save(tuple)) {
                     isTracking = false;

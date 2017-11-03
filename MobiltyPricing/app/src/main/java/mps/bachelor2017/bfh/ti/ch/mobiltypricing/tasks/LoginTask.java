@@ -87,7 +87,7 @@ public class LoginTask extends AsyncTask<User, Void, Void> {
         };
 
         request.setRetryPolicy(new DefaultRetryPolicy(
-                100,
+                4000,
                 0,
                 DefaultRetryPolicy.DEFAULT_BACKOFF_MULT));
 
