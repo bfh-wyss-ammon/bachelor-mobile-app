@@ -18,14 +18,24 @@ import org.junit.runner.RunWith;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.math.RoundingMode;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
+import data.Tuple;
+import demo.DemoManagerKey;
+import demo.DemoPublicKey;
+import demo.DemoSecretKey;
+import demo.DemoSignature;
+import keys.ManagerKey;
+import keys.PublicKey;
+import keys.SecretKey;
 import mps.bachelor2017.bfh.ti.ch.mobiltypricing.data.InvoiceItems;
 import mps.bachelor2017.bfh.ti.ch.mobiltypricing.data.MobileGroup;
 import mps.bachelor2017.bfh.ti.ch.mobiltypricing.data.MobileSecretKey;
@@ -34,7 +44,13 @@ import mps.bachelor2017.bfh.ti.ch.mobiltypricing.tasks.TollTask;
 import mps.bachelor2017.bfh.ti.ch.mobiltypricing.util.Const;
 import mps.bachelor2017.bfh.ti.ch.mobiltypricing.util.DatabaseHelper;
 import mps.bachelor2017.bfh.ti.ch.mobiltypricing.util.Error;
+import requests.JoinRequest;
+import responses.JoinResponse;
+import util.Generator;
 import util.HashHelper;
+import util.JoinHelper;
+import util.SignHelper;
+import util.VerifyHelper;
 
 import static android.util.Base64.NO_WRAP;
 import static org.junit.Assert.*;
@@ -68,27 +84,49 @@ public class ExampleInstrumentedTest {
     public void TollTest() {
         SharedPreferences settings = InstrumentationRegistry.getTargetContext().getSharedPreferences(Const.PreferenceKey, 0);
 
-        TollTask task = new TollTask(new TollTask.TollTaskListener() {
-            @Override
-            public void onTollError(Error error) {
-                assertTrue(false);
-            }
+        PublicKey pk =  new MobileGroup(settings).getPublicKey();
+        SecretKey sk = new MobileSecretKey(settings);
 
-            @Override
-            public void onTollSuccessfull() {
-                assertTrue(true);
-            }
-        }, InstrumentationRegistry.getTargetContext(), new MobileGroup(settings),new MobileSecretKey(settings));
+        Tuple a = new Tuple();
+        Date d = new Date();
 
-        task.execute();
+        a.setLatitude(new BigDecimal("9").setScale(10, RoundingMode.HALF_UP));
+        a.setLongitude(new BigDecimal("8").setScale(10, RoundingMode.HALF_UP));
+        a.setCreated(d);
 
-        while(!task.isCancelled()) {
-            try {
-                Thread.sleep(100);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-        }
+
+        byte[] testmessage = HashHelper.getHash(a);
+
+        a.setLongitude(new BigDecimal("10").setScale(10, RoundingMode.HALF_UP));
+        byte[] testmessage2 = HashHelper.getHash(a);
+
+        DemoSignature signature = new DemoSignature();
+        SignHelper.sign(sk, pk, testmessage, signature);
+
+
+//
+//
+//        TollTask task = new TollTask(new TollTask.TollTaskListener() {
+//            @Override
+//            public void onTollError(Error error) {
+//                assertTrue(false);
+//            }
+//
+//            @Override
+//            public void onTollSuccessfull() {
+//                assertTrue(true);
+//            }
+//        }, InstrumentationRegistry.getTargetContext(), new MobileGroup(settings),new MobileSecretKey(settings));
+//
+//        task.execute();
+//
+//        while(!task.isCancelled()) {
+//            try {
+//                Thread.sleep(100);
+//            } catch (InterruptedException e) {
+//                e.printStackTrace();
+//            }
+//        }
     }
 
     @Test
@@ -108,5 +146,54 @@ public class ExampleInstrumentedTest {
 
         invoiceItems = new Gson().fromJson(res, InvoiceItems.class);
 
+    }
+
+
+    @Test
+    public void testSignAndVerify() {
+
+        PublicKey publicKey = new DemoPublicKey();
+        ManagerKey managerKey = new DemoManagerKey();
+
+        Generator.generate(publicKey, managerKey);
+
+        SecretKey memberKey = new DemoSecretKey();
+        JoinHelper.init(publicKey, memberKey);
+
+        JoinRequest joinRequest = new JoinRequest(memberKey);
+
+        JoinResponse joinResponse = JoinHelper.join(publicKey, managerKey, joinRequest);
+
+        memberKey.maintainResponse(joinResponse);
+
+
+        Tuple a = new Tuple();
+        Date d = new Date();
+
+        a.setLatitude(new BigDecimal("9").setScale(10, RoundingMode.HALF_UP));
+        a.setLongitude(new BigDecimal("8").setScale(10, RoundingMode.HALF_UP));
+        a.setCreated(d);
+
+
+        byte[] testmessage = HashHelper.getHash(a);
+
+        a.setLongitude(new BigDecimal("10").setScale(10, RoundingMode.HALF_UP));
+        byte[] testmessage2 = HashHelper.getHash(a);
+
+        DemoSignature signature = new DemoSignature();
+        SignHelper.sign(memberKey, publicKey, testmessage, signature);
+
+        System.out.println("sig:" + Arrays.toString(HashHelper.getHash(signature)));
+
+        DemoSignature signature2 = new DemoSignature();
+
+        SignHelper.sign(memberKey, publicKey, testmessage, signature2);
+        System.out.println("sig2:" + Arrays.toString(HashHelper.getHash(signature2)));
+
+        Boolean res = VerifyHelper.verify(publicKey, signature, testmessage);
+        assertTrue(res);
+
+        Boolean res2 = VerifyHelper.verify(publicKey, signature, HashHelper.getHash(a));
+        assertTrue(res);
     }
 }
