@@ -112,7 +112,7 @@ public class LoginTask extends AsyncTask<User, Void, Void> {
             JoinHelper.init(settings, group.getPublicKey(), secretKey);
             JoinRequest joinRequest = new JoinRequest(secretKey);
             mListener.onStatusChanged(LoginStatus.SendJoinRequest);
-            CustomObjectRequest request = new CustomObjectRequest(Request.Method.POST, Const.AuthorityUrl + "/membership", null, new groupJoinResponseListener(), new GroupJoinErrorListener(), token, joinRequest);
+            CustomObjectRequest request = new CustomObjectRequest(Request.Method.POST, Const.AuthorityUrl + "/memberships", null, new groupJoinResponseListener(), new GroupJoinErrorListener(), token, joinRequest);
             queue.add(request);
 
         }
@@ -123,7 +123,7 @@ public class LoginTask extends AsyncTask<User, Void, Void> {
             JoinResponse joinResponse = gson.fromJson(response.toString(), JoinResponse.class);
             mListener.onStatusChanged(LoginStatus.ReceivedJoinResponse);
             secretKey.maintainResponse(joinResponse);
-            CustomRequest request = new CustomRequest(Request.Method.PUT, Const.AuthorityUrl + "/membership", new GroupConfirmResponseListener(), new GroupConfirmErrorListener(), token, null);
+            CustomRequest request = new CustomRequest(Request.Method.PUT, Const.AuthorityUrl + "/memberships", new GroupConfirmResponseListener(), new GroupConfirmErrorListener(), token, null);
             queue.add(request);
         }
     }
