@@ -50,7 +50,7 @@ public class SyncTupleTask extends AsyncTask<MobileTuple, Void, Void> {
         }
         dbTuple = tuples[0];
         RequestQueue queue = Volley.newRequestQueue(mContext);
-        CustomRequest request = new CustomRequest(Request.Method.POST, Const.ProviderUrl + "/tuple", new TupleResponseListener(), new TupleConfirmErrorListener(), null, dbTuple);
+        CustomRequest request = new CustomRequest(Request.Method.POST, Const.ProviderUrl + "/tuples", new TupleResponseListener(), new TupleConfirmErrorListener(), null, dbTuple);
         queue.add(request);
         return null;
     }
