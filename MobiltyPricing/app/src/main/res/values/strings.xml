@@ -13,4 +13,8 @@
     <string name="message_group_join_error">group join error</string>
     <string name="message_group_confirm_error">group confirm error</string>
     <string name="mssing_permission">app not works without permission bla bla bla</string>
+    <string name="loginButtonText">login</string>
+    <string name="AccountId">ID</string>
+    <string name="AccountPassword">PASSWORD</string>
+    <string name="login">login</string>
 </resources>

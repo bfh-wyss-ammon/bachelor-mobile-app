@@ -1,0 +1,9 @@
+<animated-vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:drawable="@drawable/ic_track" >
+    <target
+        android:name="cloud"
+        android:animation="@anim/path_morph" />
+    <target
+        android:name="cloud2"
+        android:animation="@anim/path_morph" />
+</animated-vector>

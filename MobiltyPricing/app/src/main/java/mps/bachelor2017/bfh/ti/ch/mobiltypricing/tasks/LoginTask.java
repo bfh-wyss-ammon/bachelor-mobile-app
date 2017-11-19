@@ -13,12 +13,9 @@ import com.android.volley.Request;
 import com.android.volley.RequestQueue;
 import com.android.volley.Response;
 import com.android.volley.VolleyError;
-import com.android.volley.toolbox.StringRequest;
 import com.android.volley.toolbox.Volley;
 import com.google.gson.Gson;
 import org.json.JSONObject;
-import java.util.HashMap;
-import java.util.Map;
 
 import mps.bachelor2017.bfh.ti.ch.mobiltypricing.data.MobileGroup;
 import mps.bachelor2017.bfh.ti.ch.mobiltypricing.data.MobileSecretKey;
@@ -78,7 +75,7 @@ public class LoginTask extends AsyncTask<User, Void, Void> {
 
         User user = users[0];
         queue = Volley.newRequestQueue(mContext);
-        CustomObjectRequest request = new CustomObjectRequest(Request.Method.POST, Const.AuthorityUrl + "/login", null, new LoginResponseListener(), new LoginErrorListener(), null, user) {
+        CustomObjectRequest request = new CustomObjectRequest(Request.Method.POST, Const.AuthorityApiUrl + "/login", null, new LoginResponseListener(), new LoginErrorListener(), null, user) {
             @Override
             protected Response<JSONObject> parseNetworkResponse(NetworkResponse response) {
                 token = response.headers.get(Const.TokenHeader);
@@ -112,7 +109,7 @@ public class LoginTask extends AsyncTask<User, Void, Void> {
             JoinHelper.init(settings, group.getPublicKey(), secretKey);
             JoinRequest joinRequest = new JoinRequest(secretKey);
             mListener.onStatusChanged(LoginStatus.SendJoinRequest);
-            CustomObjectRequest request = new CustomObjectRequest(Request.Method.POST, Const.AuthorityUrl + "/memberships", null, new groupJoinResponseListener(), new GroupJoinErrorListener(), token, joinRequest);
+            CustomObjectRequest request = new CustomObjectRequest(Request.Method.POST, Const.AuthorityApiUrl + "/memberships", null, new groupJoinResponseListener(), new GroupJoinErrorListener(), token, joinRequest);
             queue.add(request);
 
         }
@@ -123,7 +120,7 @@ public class LoginTask extends AsyncTask<User, Void, Void> {
             JoinResponse joinResponse = gson.fromJson(response.toString(), JoinResponse.class);
             mListener.onStatusChanged(LoginStatus.ReceivedJoinResponse);
             secretKey.maintainResponse(joinResponse);
-            CustomRequest request = new CustomRequest(Request.Method.PUT, Const.AuthorityUrl + "/memberships", new GroupConfirmResponseListener(), new GroupConfirmErrorListener(), token, null);
+            CustomRequest request = new CustomRequest(Request.Method.PUT, Const.AuthorityApiUrl + "/memberships", new GroupConfirmResponseListener(), new GroupConfirmErrorListener(), token, null);
             queue.add(request);
         }
     }
