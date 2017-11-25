@@ -11,12 +11,17 @@ import android.view.ViewGroup;
  */
 
 public class DriveFragment extends Fragment {
+
+
+    private DriveAnimation driveAnimation;
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.drive_fragment, container, false);
-
-
-
+        driveAnimation =(DriveAnimation)view.findViewById(R.id.driveAnimation);
         return view;
+    }
+
+    public void animate() {
+        this.driveAnimation.simulate();
     }
 }

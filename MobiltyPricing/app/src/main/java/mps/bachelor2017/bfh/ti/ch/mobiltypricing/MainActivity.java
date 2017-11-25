@@ -1,46 +1,52 @@
 package mps.bachelor2017.bfh.ti.ch.mobiltypricing;
 
 import android.Manifest;
-import android.app.Fragment;
-import android.app.FragmentManager;
 import android.app.FragmentTransaction;
-import android.app.Notification;
-import android.app.NotificationManager;
-import android.app.PendingIntent;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
-import android.net.ConnectivityManager;
-import android.net.wifi.WifiManager;
+import android.graphics.drawable.AnimatedVectorDrawable;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
-import android.support.v4.app.NotificationCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
-import android.util.Log;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
+import android.widget.ImageButton;
+import android.widget.Toast;
 
-import java.lang.reflect.Method;
-
-import mps.bachelor2017.bfh.ti.ch.mobiltypricing.fragments.DriveFragment;
-import mps.bachelor2017.bfh.ti.ch.mobiltypricing.fragments.LoginFragment;
-import mps.bachelor2017.bfh.ti.ch.mobiltypricing.fragments.MissingPermissionFragment;
+import mps.bachelor2017.bfh.ti.ch.mobiltypricing.data.User;
 import mps.bachelor2017.bfh.ti.ch.mobiltypricing.services.TrackService;
-import mps.bachelor2017.bfh.ti.ch.mobiltypricing.services.TrackService.TrackServiceStatus;
-import mps.bachelor2017.bfh.ti.ch.mobiltypricing.util.Const;
+import mps.bachelor2017.bfh.ti.ch.mobiltypricing.tasks.LoginTask;
+import mps.bachelor2017.bfh.ti.ch.mobiltypricing.tasks.NetworkCheck;
+import mps.bachelor2017.bfh.ti.ch.mobiltypricing.util.Helper;
+import mps.bachelor2017.bfh.ti.ch.mobiltypricing.util.UserHandler;
 
 import static android.support.v4.content.PermissionChecker.PERMISSION_DENIED;
-import static mps.bachelor2017.bfh.ti.ch.mobiltypricing.services.TrackService.TrackServiceStatus.*;
+import static junit.framework.Assert.fail;
 
-public class MainActivity extends AppCompatActivity implements TrackService.TrackServiceEvents {
+/**
+ * Created by Pascal on 06.10.2017.
+ */
 
-    private Boolean mIsLoggedIn = false;
+public class MainActivity extends AppCompatActivity implements NetworkCheck.NetworkCheckEvents, LoginFragment.LoginListener, LoginTask.LoginTaskListener, CheckInFragment.CheckInEvents, TrackService.TrackServiceEvents {
+
+    private boolean hasNetworkConnection = false;
+    private boolean hasGpsPermission = false;
+    private  AnimatedVectorDrawable gpsAnimatedVectorDrawable;
+    private AnimatedVectorDrawable networkAnimatedVectorDrawable;
+    private ImageButton mNetworkConnectionStatus;
+    private ImageButton mGpsStatus;
     private LoginFragment mLoginFragment;
+    private CheckInFragment mCheckInFragment;
     private DriveFragment mDriveFragment;
-    private FragmentManager mFragmentManager;
+
+    private boolean error;
     private TrackService mTrackService;
     private boolean mBound;
     private ServiceConnection mConnection = new ServiceConnection() {
@@ -51,10 +57,7 @@ public class MainActivity extends AppCompatActivity implements TrackService.Trac
             mTrackService = binder.getService();
             mBound = true;
             mTrackService.setCallbacks(MainActivity.this);
-            FragmentTransaction fragmentTransaction = mFragmentManager.beginTransaction();
-            Fragment fragment = mIsLoggedIn ? getDriveFragment() : getLoginFragment();
-            fragmentTransaction.add(R.id.hostLayout, fragment);
-            fragmentTransaction.commit();
+
         }
 
         @Override
@@ -67,135 +70,283 @@ public class MainActivity extends AppCompatActivity implements TrackService.Trac
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
-        mIsLoggedIn = getSharedPreferences(Const.PreferenceKey, 0).getBoolean("status", false);
-        mFragmentManager = getFragmentManager();
+        setContentView(R.layout.activity_entry);
+
+        initUserInterfaceComponents();
+        ensureGpsPermission();
+        ensureNetworkConnection();
 
         // start service
         Intent intent = new Intent(this, TrackService.class);
         bindService(intent, mConnection, Context.BIND_AUTO_CREATE);
+    }
 
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.INTERNET) == 0) {
-            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.INTERNET}, 1);
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        MenuInflater inflater = getMenuInflater();
+        inflater.inflate(R.menu.main_menu, menu);
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        // Handle item selection
+        switch (item.getItemId()) {
+            case R.id.logout:
+                logout();
+                return true;
+            default:
+                return super.onOptionsItemSelected(item);
         }
+    }
+
+
+    private void initUserInterfaceComponents() {
+        this.mNetworkConnectionStatus = (ImageButton) findViewById(R.id.NetworkStatusButton);
+        this.mGpsStatus = (ImageButton) findViewById(R.id.GpsStatusButton);
+        this.mNetworkConnectionStatus.setOnClickListener(v -> {
+            if(!hasNetworkConnection)
+                ensureNetworkConnection();
+        });
+
+        this.mGpsStatus.setOnClickListener(v -> {
+            if(!hasGpsPermission)
+                ensureGpsPermission();
+        });
+
+        this.gpsAnimatedVectorDrawable = (AnimatedVectorDrawable) getDrawable(R.drawable.ic_position_animated);
+        this.networkAnimatedVectorDrawable = (AnimatedVectorDrawable) getDrawable(R.drawable.ic_network_animated);
+    }
+
+    private void ensureGpsPermission() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, 2);
+            setGpsLoading();
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, 1);
+        }
+        else {
+            this.hasGpsPermission = true;
+            setGpsSuccessfully();
         }
     }
 
-    private LoginFragment getLoginFragment() {
-        mLoginFragment = new LoginFragment();
-        mLoginFragment.onLogInSuccessfullListener = () -> {
-            FragmentTransaction fragmentTransaction = mFragmentManager.beginTransaction();
-            fragmentTransaction.remove(mLoginFragment);
-            fragmentTransaction.add(R.id.hostLayout, getDriveFragment());
-            fragmentTransaction.commit();
-            mLoginFragment = null;
-        };
-        return mLoginFragment;
+    private void ensureNetworkConnection() {
+        setNetworkLoading();
+        NetworkCheck networkCheck = new NetworkCheck(this, getApplicationContext());
+        networkCheck.execute();
     }
 
-    private DriveFragment getDriveFragment() {
-        mDriveFragment = new DriveFragment();
-        mDriveFragment.onLogOutSuccessfullListener = () -> {
-            FragmentTransaction fragmentTransaction = mFragmentManager.beginTransaction();
-            fragmentTransaction.remove(mDriveFragment);
-            fragmentTransaction.add(R.id.hostLayout, getLoginFragment());
-            fragmentTransaction.commit();
-            mDriveFragment = null;
-        };
-
-        mDriveFragment.driveListener = new DriveFragment.DriveListener() {
-            @Override
-            public void start() {
-                mTrackService.start();
-            }
-
-            @Override
-            public void stop() {
-                mTrackService.stop();
-            }
-        };
-        return mDriveFragment;
-    }
-
-    @Override
-    public void onStatusChanged(TrackServiceStatus status) {
-
-        switch (status) {
-            case NO_GPS_SIGNAL:
-            case NO_GPS_SIGNAL_PERMISSION:
-            case NO_WLAN_SIGNAL_PERMISSION:
-            case ERROR_DURING_PERSISTING:
-            case ERROR_DURING_SYNC: createNotification(1, "Mobility Pricing", "Error, check permissions and/or network connection", true, false); break;
-            case DRIVE: break;
-            case READY: break;
-            case GPS_SIGNAL_TRACKED:
-            case GPS_SIGNAL_SYNC:
-                break;
-        }
-    }
-
-    @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
-        for (int grantResult : grantResults) {
-            if (grantResult == PERMISSION_DENIED) {
-                FragmentTransaction fragmentTransaction = mFragmentManager.beginTransaction();
-                if (mLoginFragment != null) {
-                    fragmentTransaction.remove(mLoginFragment);
+    private synchronized void handleStatusChange() {
+        if(hasGpsPermission && hasNetworkConnection) {
+            if(UserHandler.exist(getApplicationContext())) {
+                if(mCheckInFragment == null) {
+                    mCheckInFragment = new CheckInFragment();
+                    mCheckInFragment.setCheckInEvents(this);
                 }
-                if (mDriveFragment != null) {
-                    fragmentTransaction.remove(mDriveFragment);
+                FragmentTransaction fragmentTransaction = getFragmentManager().beginTransaction();
+                fragmentTransaction.add(R.id.MainArea, mCheckInFragment);
+                fragmentTransaction.commit();
+
+            }
+            else {
+                if(mLoginFragment == null) {
+                    mLoginFragment = new LoginFragment();
+                    mLoginFragment.setOnLoginListener(this);
                 }
-                fragmentTransaction.add(R.id.hostLayout, new MissingPermissionFragment());
+                FragmentTransaction fragmentTransaction = getFragmentManager().beginTransaction();
+                fragmentTransaction.add(R.id.MainArea, mLoginFragment);
                 fragmentTransaction.commit();
             }
         }
     }
 
-    public void clearNotification(int id) {
-        NotificationManager notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-        notificationManager.cancel(id);
+    //region Login & logout
+    private void logout() {
+        UserHandler.clear(getApplicationContext());
+        handleStatusChange();
     }
 
-    public void createNotification(int id, String title, String text, boolean ongoing, boolean lightsAndVibrate) {
+    @Override
+    public void onLogin(String id, String pwd) {
+        mLoginFragment.animate();
+        LoginTask loginTask = new LoginTask(this, getApplicationContext());
 
-        NotificationCompat.Builder mBuilder;
-        if (lightsAndVibrate) {
 
-            mBuilder =
-                    new NotificationCompat.Builder(getApplicationContext())
-                            .setSmallIcon(R.drawable.ic_stat_na)
-                            .setContentTitle(title)
-                            .setOngoing(ongoing)
-                            .setContentText(text)
-                            .setLights(0xFF0000FF, 100, 3000)
-                            .setPriority(Notification.PRIORITY_DEFAULT)
-                            .setVibrate(new long[]{1000, 1000, 1000, 1000, 1000});
+        loginTask.execute(new User(id, Helper.getHash(pwd)));
+    }
 
-        } else {
-            mBuilder =
-                    new NotificationCompat.Builder(getApplicationContext())
-                            .setSmallIcon(R.drawable.ic_stat_na)
-                            .setContentTitle(title)
-                            .setOngoing(ongoing)
-                            .setContentText(text);
+    @Override
+    public void onLoginError() {
+        Toast.makeText(getApplicationContext(), "general login error. please contact service desk.", Toast.LENGTH_SHORT).show();
+        mLoginFragment.stopAnimate();
+    }
+
+    @Override
+    public void onAuthenticationError() {
+        Toast.makeText(getApplicationContext(), "login error. wrong password or id", Toast.LENGTH_SHORT).show();
+        mLoginFragment.stopAnimate();
+    }
+
+    @Override
+    public void onAlreadyLoggedInError() {
+        Toast.makeText(getApplicationContext(), "you are already loggedIn!", Toast.LENGTH_SHORT).show();
+        mLoginFragment.stopAnimate();
+    }
+
+    @Override
+    public void onLoginSuccessfully() {
+        Toast.makeText(getApplicationContext(), "login successfully", Toast.LENGTH_SHORT).show();
+        FragmentTransaction fragmentTransaction = getFragmentManager().beginTransaction();
+        fragmentTransaction.remove(mLoginFragment);
+        fragmentTransaction.commit();
+        mLoginFragment.onDestroy();
+        mLoginFragment = null;
+    }
+
+    //endregion
+
+    //region Permission
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        for (int i = 0; i < permissions.length; i++) {
+            if(grantResults[i] == PERMISSION_DENIED) {
+                if(Manifest.permission.ACCESS_FINE_LOCATION.equals(permissions[i])) {
+                    setGpsError();
+                }
+                else  if(Manifest.permission.INTERNET.equals(permissions[i])) {
+                    setNetworkError();
+                }
+            }
+            else {
+                if(Manifest.permission.ACCESS_FINE_LOCATION.equals(permissions[i])) {
+                    setGpsSuccessfully();
+                }
+            }
         }
-
-
-        Intent resultIntent = new Intent(getApplicationContext(), MainActivity.class);
-
-
-        PendingIntent resultPendingIntent =
-                PendingIntent.getActivity(
-                        getApplicationContext(),
-                        0,
-                        resultIntent,
-                        PendingIntent.FLAG_UPDATE_CURRENT
-                );
-        mBuilder.setContentIntent(resultPendingIntent);
-        NotificationManager mNotifyMgr =
-                (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
-        mNotifyMgr.notify(id, mBuilder.build());
     }
+
+    @Override
+    public void onNetworkCheckSuccessfully() {
+        setNetworkSuccessfully();
+    }
+
+    @Override
+    public void onNetworkCheckError(Exception error) {
+        runOnUiThread(this::setNetworkError);
+    }
+
+    private void setNetworkLoading() {
+        runOnUiThread(() -> {
+            this.mNetworkConnectionStatus.setImageDrawable(networkAnimatedVectorDrawable);
+            this.networkAnimatedVectorDrawable.start();
+        });
+    }
+
+    private void setGpsLoading() {
+        runOnUiThread(() -> {
+            this.mGpsStatus.setImageDrawable(gpsAnimatedVectorDrawable);
+            this.gpsAnimatedVectorDrawable.start();
+        });
+    }
+
+    private void setNetworkSuccessfully() {
+        runOnUiThread(() -> {
+            this.mNetworkConnectionStatus.setImageResource(R.drawable.ic_network_oke);
+        });
+        this.hasNetworkConnection = true;
+        handleStatusChange();
+    }
+
+    private void setGpsSuccessfully() {
+        runOnUiThread(() -> {
+            this.mGpsStatus.setImageResource(R.drawable.ic_positional_map_oke);
+        });
+        this.hasGpsPermission = true;
+        handleStatusChange();
+    }
+
+    private void setGpsError() {
+        runOnUiThread(() -> {
+            this.mGpsStatus.setImageResource(R.drawable.ic_positional_map_oke);
+        });
+        this.hasGpsPermission = false;
+        handleStatusChange();
+    }
+
+    private void setNetworkError() {
+        runOnUiThread(() -> {
+            this.mNetworkConnectionStatus.setImageResource(R.drawable.ic_network_fail);
+            Toast.makeText(getApplicationContext(), "Network Error!", Toast.LENGTH_SHORT).show();
+        });
+        this.hasNetworkConnection = false;
+        handleStatusChange();
+    }
+    // endregion
+
+    //region drive
+    @Override
+    public void checkInStart() {
+        FragmentTransaction fragmentTransaction = getFragmentManager().beginTransaction();
+        fragmentTransaction.remove(mCheckInFragment);
+        fragmentTransaction.commit();
+        mTrackService.startLocationUpdates();
+    }
+
+    private void onDriveError() {
+        this.hasGpsPermission = false;
+        if(mDriveFragment != null) {
+            FragmentTransaction fragmentTransaction = getFragmentManager().beginTransaction();
+            fragmentTransaction.remove(mDriveFragment);
+            fragmentTransaction.commit();
+            handleStatusChange();
+        }
+    }
+
+    @Override
+    public void onGpsSignalError() {
+        Toast.makeText(getApplicationContext(), "no gps signal!", Toast.LENGTH_LONG).show();
+        onDriveError();
+    }
+
+    @Override
+    public void onGpsSignal() {
+        mTrackService.start();
+
+
+    }
+
+    @Override
+    public void onDrive() {
+        if(mDriveFragment == null) {
+            mDriveFragment = new DriveFragment();
+        }
+        FragmentTransaction fragmentTransaction = getFragmentManager().beginTransaction();
+        fragmentTransaction.add(R.id.MainArea, mDriveFragment);
+        fragmentTransaction.commit();
+    }
+
+    @Override
+    public void onError() {
+        Toast.makeText(getApplicationContext(), "Error while drive. please contact support!", Toast.LENGTH_LONG).show();
+        onDriveError();
+    }
+
+    @Override
+    public void onSend() {
+        mDriveFragment.animate();
+    }
+
+    @Override
+    public void onFinished() {
+        Toast.makeText(getApplicationContext(), "thanks for driving!", Toast.LENGTH_LONG).show();
+        FragmentTransaction fragmentTransaction = getFragmentManager().beginTransaction();
+        fragmentTransaction.remove(mDriveFragment);
+        fragmentTransaction.commit();
+        handleStatusChange();
+    }
+
+
+    //endregion
+
+
+
 }

@@ -1,31 +1,32 @@
 package mps.bachelor2017.bfh.ti.ch.mobiltypricing.services;
 
 import android.Manifest;
+import android.annotation.SuppressLint;
 import android.app.Service;
-import android.content.Context;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.location.Location;
-import android.net.ConnectivityManager;
-import android.net.wifi.WifiManager;
 import android.os.Binder;
 import android.os.Bundle;
 import android.os.IBinder;
+import android.os.Looper;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v4.app.ActivityCompat;
-import android.support.v4.content.ContextCompat;
 import android.util.Base64;
 import android.util.Log;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.location.FusedLocationProviderClient;
+import com.google.android.gms.location.LocationCallback;
 import com.google.android.gms.location.LocationListener;
 import com.google.android.gms.location.LocationRequest;
+import com.google.android.gms.location.LocationResult;
 import com.google.android.gms.location.LocationServices;
+import com.google.android.gms.location.LocationSettingsRequest;
+import com.google.android.gms.location.SettingsClient;
 
-import java.lang.reflect.Method;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.Date;
@@ -34,17 +35,14 @@ import java.util.Timer;
 import java.util.TimerTask;
 
 import mps.bachelor2017.bfh.ti.ch.mobiltypricing.data.MobileTuple;
-import mps.bachelor2017.bfh.ti.ch.mobiltypricing.data.MobileGroup;
-import mps.bachelor2017.bfh.ti.ch.mobiltypricing.data.MobileSecretKey;
 import mps.bachelor2017.bfh.ti.ch.mobiltypricing.tasks.SyncTupleTask;
 import mps.bachelor2017.bfh.ti.ch.mobiltypricing.tasks.TollTask;
-import mps.bachelor2017.bfh.ti.ch.mobiltypricing.util.Const;
 import mps.bachelor2017.bfh.ti.ch.mobiltypricing.util.DatabaseHelper;
 import mps.bachelor2017.bfh.ti.ch.mobiltypricing.util.Error;
+import mps.bachelor2017.bfh.ti.ch.mobiltypricing.util.UserHandler;
 import util.HashHelper;
 import util.SignHelper;
 
-import static android.support.v4.content.PermissionChecker.PERMISSION_DENIED;
 import static android.util.Base64.NO_WRAP;
 
 
@@ -55,21 +53,17 @@ import static android.util.Base64.NO_WRAP;
 public class TrackService extends Service implements GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener, LocationListener, SyncTupleTask.SendTupleTaskListener, TollTask.TollTaskListener {
 
     public interface TrackServiceEvents {
-        void onStatusChanged(TrackServiceStatus status);
-    }
+        void onGpsSignalError();
 
-    public enum TrackServiceStatus {
-        NO_GPS_SIGNAL,
-        NO_GPS_SIGNAL_PERMISSION,
-        NO_WLAN_SIGNAL_PERMISSION,
-        DRIVE,
-        READY,
-        ERROR_DURING_PERSISTING,
-        ERROR_DURING_SYNC,
-        GPS_SIGNAL_TRACKED,
-        GPS_SIGNAL_SYNC,
-        PAY_SUCCESSFULL,
-        PAY_ERROR
+        void onGpsSignal();
+
+        void onDrive();
+
+        void onError();
+
+        void onSend();
+
+        void onFinished();
     }
 
     public class TrackBinder extends Binder {
@@ -78,21 +72,24 @@ public class TrackService extends Service implements GoogleApiClient.ConnectionC
         }
     }
 
+
+    private FusedLocationProviderClient mFusedLocationClient;
+
+
     //used for check if run method is called for the first time
     protected int warmUpCounter = 5;
     protected LocationRequest mLocationRequest;
     protected GoogleApiClient mGoogleApiClient;
-    protected long updateInterval = 5000;
+    protected long updateInterval = 30 * 1000;
 
     private Timer timer;
-    private Location mLocation;
-    private MobileSecretKey mMobileSecretKey;
-    private MobileGroup mMobileGroup;
+    private Location mLastLocation;
     private DatabaseHelper dbHelper;
     private TrackServiceEvents mEvent;
     private final IBinder mBinder = new TrackBinder();
     private int syncCount = 0;
     private boolean isTracking = false;
+
 
     @Override
     public void onCreate() {
@@ -109,13 +106,6 @@ public class TrackService extends Service implements GoogleApiClient.ConnectionC
             mLocationRequest.setInterval(updateInterval);
             mLocationRequest.setFastestInterval(updateInterval);
             mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
-        }
-        SharedPreferences settings = getSharedPreferences(Const.PreferenceKey, 0);
-        if (mMobileGroup == null) {
-            mMobileGroup = new MobileGroup(settings);
-        }
-        if (mMobileSecretKey == null) {
-            mMobileSecretKey = new MobileSecretKey(settings);
         }
         if (dbHelper == null) {
             dbHelper = new DatabaseHelper(getApplicationContext());
@@ -134,15 +124,6 @@ public class TrackService extends Service implements GoogleApiClient.ConnectionC
     }
 
     @Override
-    public void onConnected(@Nullable Bundle bundle) {
-    }
-
-    @Override
-    public void onConnectionSuspended(int i) {
-        Log.v("TrackService", "suspended");
-    }
-
-    @Override
     public void onConnectionFailed(@NonNull ConnectionResult connectionResult) {
         Log.v("TrackService", "connection failed");
     }
@@ -152,69 +133,64 @@ public class TrackService extends Service implements GoogleApiClient.ConnectionC
     }
 
     @Override
-    public void onLocationChanged(Location location) {
-        Log.v("TrackService", "new location time:" + location.getTime() + " latitude:" + location.getLatitude() + " longitude" + location.getLongitude());
-        mLocation = location;
+    public void onConnected(@Nullable Bundle bundle) {
+
     }
 
-    private TrackServiceStatus getStatus() {
-        boolean gpsPermission = hasGpsPermission();
-        boolean networkPermission = hasNetworkPermission();
-        return gpsPermission && networkPermission ? isTracking ? TrackServiceStatus.DRIVE : TrackServiceStatus.READY : !gpsPermission ? TrackServiceStatus.NO_GPS_SIGNAL_PERMISSION : TrackServiceStatus.NO_WLAN_SIGNAL_PERMISSION;
+    @Override
+    public void onConnectionSuspended(int i) {
+
     }
 
-    private boolean checkPermission() {
-        TrackServiceStatus status = getStatus();
-        if (status != TrackServiceStatus.READY && status != TrackServiceStatus.DRIVE) {
-            mEvent.onStatusChanged(status);
-            return false;
-        }
-        return true;
-    }
-
-    public void start() {
-        if (!checkPermission()) {
+    public void startLocationUpdates() {
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+           mEvent.onError();
             return;
         }
-
         LocationServices.FusedLocationApi.requestLocationUpdates(mGoogleApiClient, mLocationRequest, this);
+    }
 
+    @Override
+    public void onLocationChanged(Location location) {
+        Log.v("TrackService", "new location time:" + location.getTime() + " latitude:" + location.getLatitude() + " longitude" + location.getLongitude());
+        if(mLastLocation == null) {
+            mEvent.onGpsSignal();
+        }
+        mLastLocation = location;
+    }
+
+    @SuppressLint("MissingPermission")
+    public void start() {
         timer = new Timer();
         timer.scheduleAtFixedRate(new TimerTask() {
             @Override
             public void run() {
-                if (!checkPermission()) {
-                    timer.cancel();
-                    return;
-                }
-                if (mLocation == null) {
+                if (mLastLocation == null) {
                     if (warmUpCounter > 0) {
                         warmUpCounter--;
                     } else {
-                        mEvent.onStatusChanged(TrackServiceStatus.NO_GPS_SIGNAL);
+                        mEvent.onGpsSignalError();
                         timer.cancel();
                     }
                     return;
                 }
 
                 if (!isTracking) {
-                    mEvent.onStatusChanged(TrackServiceStatus.DRIVE);
+                    mEvent.onDrive();
                     isTracking = true;
                 }
-                MobileTuple tuple = new MobileTuple(mMobileGroup.getGroupId(), new BigDecimal(mLocation.getLatitude()).setScale(10, RoundingMode.HALF_UP), new BigDecimal(mLocation.getLongitude()).setScale(10, RoundingMode.HALF_UP), new Date());
-                byte[] hash =  HashHelper.getHash(tuple);
-                SignHelper.sign(mMobileSecretKey, mMobileGroup.getPublicKey(), hash, tuple.getSignature());
+                MobileTuple tuple = new MobileTuple(UserHandler.getGroupId(getApplicationContext()), new BigDecimal(mLastLocation.getLatitude()).setScale(10, RoundingMode.HALF_UP), new BigDecimal(mLastLocation.getLongitude()).setScale(10, RoundingMode.HALF_UP), new Date());
+                byte[] hash = HashHelper.getHash(tuple);
+                SignHelper.sign(UserHandler.getSecretKey(getApplicationContext()), UserHandler.getPublicKey(getApplicationContext()), hash, tuple.getSignature());
 
                 tuple.setHash(Base64.encodeToString(hash, NO_WRAP));
 
                 if (!dbHelper.save(tuple)) {
                     isTracking = false;
-                    mEvent.onStatusChanged(TrackServiceStatus.ERROR_DURING_PERSISTING);
+                    Log.v("TrackService", "Error while saving tuple");
+                    mEvent.onError();
                     timer.cancel();
                     return;
-                }
-                else {
-                    mEvent.onStatusChanged(TrackServiceStatus.GPS_SIGNAL_TRACKED);
                 }
                 if (syncCount == 0) {
                     syncCount = -1;
@@ -234,72 +210,29 @@ public class TrackService extends Service implements GoogleApiClient.ConnectionC
         LocationServices.FusedLocationApi.removeLocationUpdates(mGoogleApiClient, this);
         isTracking = false;
         timer.cancel();
-        TollTask tk = new TollTask(this, getApplicationContext(), mMobileGroup, mMobileSecretKey);
+        TollTask tk = new TollTask(this, getApplicationContext());
         tk.execute();
     }
 
     @Override
     public void onTupleSendError() {
-        timer.cancel();
-        syncCount = 0;
-        mEvent.onStatusChanged(TrackServiceStatus.ERROR_DURING_SYNC);
+        Log.v("TrackService", "Error while send tuple");
     }
 
     @Override
-    public void onTupleSendSuccessfull() {
+    public synchronized void onTupleSendSuccessfull() {
         syncCount--;
-        mEvent.onStatusChanged(TrackServiceStatus.GPS_SIGNAL_SYNC);
-    }
-
-    private boolean hasGpsPermission() {
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED)
-            return false;
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED)
-            return false;
-        return true;
+        mEvent.onSend();
     }
 
     @Override
-    public void onTollError(Error error) {
-
-        mEvent.onStatusChanged(TrackServiceStatus.PAY_ERROR);
+    public synchronized void onTollError(Error error) {
+        Log.v("TrackService", "Error while toll");
+        mEvent.onError();
     }
 
     @Override
     public void onTollSuccessfull() {
-        mEvent.onStatusChanged(TrackServiceStatus.PAY_SUCCESSFULL);
-    }
-
-    private boolean hasNetworkPermission() {
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.INTERNET) == PERMISSION_DENIED) {
-            return false;
-        }
-
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            return false;
-        }
-
-        //check if we really have mobile data connection
-        boolean mobileDataEnabled = false; // Assume disabled
-        ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
-        try {
-            Class cmClass = Class.forName(cm.getClass().getName());
-            Method method = cmClass.getDeclaredMethod("getMobileDataEnabled");
-            method.setAccessible(true); // Make the method callable
-            // get the setting for "mobile data"
-            mobileDataEnabled = (Boolean) method.invoke(cm);
-        } catch (Exception e) {
-            // TODO error handling?
-        }
-        if (!mobileDataEnabled) {
-            return false;
-        }
-
-        //check if wifi is enabled
-        WifiManager wifi = (WifiManager) getSystemService(Context.WIFI_SERVICE);
-        if (!wifi.isWifiEnabled()) {
-            return false;
-        }
-        return true;
+        mEvent.onFinished();
     }
 }

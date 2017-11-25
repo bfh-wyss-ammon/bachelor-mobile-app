@@ -4,7 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context="mps.bachelor2017.bfh.ti.ch.mobiltypricing.MainActivity">
+    tools:context="mps.bachelor2017.bfh.ti.ch.mobiltypricing.MainActivityOld">
 
     <LinearLayout
         android:id="@+id/hostLayout"

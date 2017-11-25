@@ -23,6 +23,7 @@ import mps.bachelor2017.bfh.ti.ch.mobiltypricing.data.User;
 import mps.bachelor2017.bfh.ti.ch.mobiltypricing.util.Const;
 import mps.bachelor2017.bfh.ti.ch.mobiltypricing.util.CustomObjectRequest;
 import mps.bachelor2017.bfh.ti.ch.mobiltypricing.util.CustomRequest;
+import mps.bachelor2017.bfh.ti.ch.mobiltypricing.util.UserHandler;
 import requests.JoinRequest;
 import responses.JoinResponse;
 import settings.DefaultSettings;
@@ -34,25 +35,14 @@ import util.JoinHelper;
 
 public class LoginTask extends AsyncTask<User, Void, Void> {
 
-    public enum LoginStatus {
-        LoginSuccessfull,
-        AuthenticatenSuccessfull,
-        SecretKeyCalculated,
-        SendJoinRequest,
-        ReceivedJoinResponse,
-        AlreadyLoggedIn,
-        AuthenticatenError,
-        NetworkError,
-        GroupJoinError,
-        GroupConfirmError,
-        OtherError
+    public interface LoginTaskListener {
+        void onLoginError();
+        void onAuthenticationError();
+        void onAlreadyLoggedInError();
+        void onLoginSuccessfully();
     }
 
-    public interface OnStatusChangedListener {
-        void onStatusChanged(LoginStatus status);
-    }
-
-    private OnStatusChangedListener mListener;
+    private LoginTaskListener mListener;
     private String token;
     private MobileSecretKey secretKey;
     private static final DefaultSettings settings = new DefaultSettings();
@@ -61,8 +51,7 @@ public class LoginTask extends AsyncTask<User, Void, Void> {
     private MobileGroup group;
     private Context mContext;
 
-    public LoginTask(OnStatusChangedListener listener, Context context) {
-
+    public LoginTask(LoginTaskListener listener, Context context) {
         this.mListener = listener;
         this.mContext = context;
     }
@@ -82,12 +71,6 @@ public class LoginTask extends AsyncTask<User, Void, Void> {
                 return super.parseNetworkResponse(response);
             }
         };
-
-        request.setRetryPolicy(new DefaultRetryPolicy(
-                4000,
-                0,
-                DefaultRetryPolicy.DEFAULT_BACKOFF_MULT));
-
         queue.add(request);
 
         return null;
@@ -101,14 +84,10 @@ public class LoginTask extends AsyncTask<User, Void, Void> {
     private class LoginResponseListener implements Response.Listener {
         @Override
         public void onResponse(Object response) {
-            mListener.onStatusChanged(LoginStatus.AuthenticatenSuccessfull);
             group = gson.fromJson(response.toString(), MobileGroup.class);
             secretKey = new MobileSecretKey();
-            mListener.onStatusChanged(LoginStatus.SecretKeyCalculated);
-
             JoinHelper.init(settings, group.getPublicKey(), secretKey);
             JoinRequest joinRequest = new JoinRequest(secretKey);
-            mListener.onStatusChanged(LoginStatus.SendJoinRequest);
             CustomObjectRequest request = new CustomObjectRequest(Request.Method.POST, Const.AuthorityApiUrl + "/memberships", null, new groupJoinResponseListener(), new GroupJoinErrorListener(), token, joinRequest);
             queue.add(request);
 
@@ -118,7 +97,6 @@ public class LoginTask extends AsyncTask<User, Void, Void> {
         @Override
         public void onResponse(Object response) {
             JoinResponse joinResponse = gson.fromJson(response.toString(), JoinResponse.class);
-            mListener.onStatusChanged(LoginStatus.ReceivedJoinResponse);
             secretKey.maintainResponse(joinResponse);
             CustomRequest request = new CustomRequest(Request.Method.PUT, Const.AuthorityApiUrl + "/memberships", new GroupConfirmResponseListener(), new GroupConfirmErrorListener(), token, null);
             queue.add(request);
@@ -128,22 +106,15 @@ public class LoginTask extends AsyncTask<User, Void, Void> {
     private class GroupConfirmResponseListener implements Response.Listener {
         @Override
         public void onResponse(Object response) {
-            SharedPreferences settings = mContext.getSharedPreferences(Const.PreferenceKey, 0);
-            group.save(settings);
-            secretKey.save(settings);
-            SharedPreferences.Editor editor = settings.edit();
-            editor.putBoolean("status", true);
-            editor.apply();
-
-            mListener.onStatusChanged(LoginStatus.LoginSuccessfull);
-            Log.v("LoginService", "login done!");
+            UserHandler.save(mContext, secretKey, group);
+            mListener.onLoginSuccessfully();
         }
     }
 
     private class GroupJoinErrorListener implements Response.ErrorListener {
         @Override
         public void onErrorResponse(VolleyError error) {
-            mListener.onStatusChanged(LoginStatus.GroupJoinError);
+            mListener.onLoginError();
             error.printStackTrace();
         }
     }
@@ -152,13 +123,13 @@ public class LoginTask extends AsyncTask<User, Void, Void> {
         @Override
         public void onErrorResponse(VolleyError error) {
             if(error instanceof  AuthFailureError) {
-                mListener.onStatusChanged(LoginStatus.AuthenticatenError);
+                mListener.onAuthenticationError();
             }
             else if(error instanceof NetworkError) {
-                mListener.onStatusChanged(LoginStatus.NetworkError);
+                mListener.onLoginError();
             }
             else {
-                mListener.onStatusChanged(LoginStatus.AlreadyLoggedIn);
+                mListener.onAlreadyLoggedInError();
             }
             error.printStackTrace();
         }
@@ -167,8 +138,8 @@ public class LoginTask extends AsyncTask<User, Void, Void> {
     private class GroupConfirmErrorListener implements Response.ErrorListener {
         @Override
         public void onErrorResponse(VolleyError error) {
-            mListener.onStatusChanged(LoginStatus.GroupConfirmError);
             error.printStackTrace();
+            mListener.onLoginError();
         }
     }
 

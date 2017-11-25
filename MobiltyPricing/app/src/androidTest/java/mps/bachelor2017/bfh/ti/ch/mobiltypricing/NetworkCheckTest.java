@@ -58,12 +58,12 @@ public class NetworkCheckTest {
 
         NetworkCheck networkCheck = new NetworkCheck(new NetworkCheck.NetworkCheckEvents() {
             @Override
-            public void onSuccessfully() {
+            public void onNetworkCheckSuccessfully() {
                 status[0] = true;
             }
 
             @Override
-            public void onError(Exception ex) {
+            public void onNetworkCheckError(Exception ex) {
                 fail(ex.getMessage());
             }
         }, appContext);

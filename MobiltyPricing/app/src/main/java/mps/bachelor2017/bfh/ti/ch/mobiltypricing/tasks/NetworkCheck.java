@@ -1,24 +1,13 @@
 package mps.bachelor2017.bfh.ti.ch.mobiltypricing.tasks;
 
 import android.content.Context;
-import android.net.ConnectivityManager;
-import android.net.NetworkInfo;
 import android.os.AsyncTask;
 
-import com.android.volley.DefaultRetryPolicy;
-import com.android.volley.NetworkResponse;
 import com.android.volley.Request;
 import com.android.volley.RequestQueue;
-import com.android.volley.Response;
 import com.android.volley.toolbox.Volley;
 
-import org.json.JSONObject;
-
-import java.net.HttpURLConnection;
-import java.net.URL;
-
 import mps.bachelor2017.bfh.ti.ch.mobiltypricing.util.Const;
-import mps.bachelor2017.bfh.ti.ch.mobiltypricing.util.CustomObjectRequest;
 import mps.bachelor2017.bfh.ti.ch.mobiltypricing.util.CustomRequest;
 
 /**
@@ -28,8 +17,8 @@ import mps.bachelor2017.bfh.ti.ch.mobiltypricing.util.CustomRequest;
 
 public class NetworkCheck extends AsyncTask<Void, Void, Void> {
     public interface NetworkCheckEvents {
-        void onSuccessfully();
-        void onError(Exception error);
+        void onNetworkCheckSuccessfully();
+        void onNetworkCheckError(Exception error);
     }
 
     private  NetworkCheckEvents events;
@@ -52,14 +41,14 @@ public class NetworkCheck extends AsyncTask<Void, Void, Void> {
         queue.add(new CustomRequest(Request.Method.GET, Const.AuthorityApiUrl + "/status", response -> {
             updateStatus(0, true);
         }, error -> {
-            events.onError(error);
+            events.onNetworkCheckError(error);
         }, null, null));
 
 
         queue.add(new CustomRequest(Request.Method.GET, Const.ProviderUrl + "/status", response -> {
             updateStatus(1, true);
         }, error -> {
-            events.onError(error);
+            events.onNetworkCheckError(error);
         }, null, null));
 
         return null;
@@ -77,7 +66,7 @@ public class NetworkCheck extends AsyncTask<Void, Void, Void> {
             result = this.staArr[i] == 1;
         }
         if(result) {
-            events.onSuccessfully();
+            events.onNetworkCheckSuccessfully();
         }
     }
 }

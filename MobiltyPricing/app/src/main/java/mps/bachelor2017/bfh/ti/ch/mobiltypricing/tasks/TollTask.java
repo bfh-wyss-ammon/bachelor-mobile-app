@@ -35,6 +35,7 @@ import mps.bachelor2017.bfh.ti.ch.mobiltypricing.util.CustomObjectRequest;
 import mps.bachelor2017.bfh.ti.ch.mobiltypricing.util.CustomRequest;
 import mps.bachelor2017.bfh.ti.ch.mobiltypricing.util.DatabaseHelper;
 import mps.bachelor2017.bfh.ti.ch.mobiltypricing.util.Error;
+import mps.bachelor2017.bfh.ti.ch.mobiltypricing.util.UserHandler;
 import util.HashHelper;
 import util.SignHelper;
 
@@ -57,16 +58,12 @@ public class TollTask extends AsyncTask<Void, Void, Void> implements SyncTupleTa
     private Context mContext;
     private RequestQueue queue;
     private DatabaseHelper dbHelper;
-    private MobileGroup mGroup;
-    private MobileSecretKey mobileSecretKey;
     private int syncCount;
     private List<String> hashes;
 
-    public TollTask(TollTaskListener mListener, Context mContext, MobileGroup group, MobileSecretKey mobileSecretKey) {
+    public TollTask(TollTaskListener mListener, Context mContext) {
         this.mListener = mListener;
         this.mContext = mContext;
-        this.mGroup = group;
-        this.mobileSecretKey = mobileSecretKey;
         hashes = new ArrayList<>();
     }
 
@@ -105,7 +102,7 @@ public class TollTask extends AsyncTask<Void, Void, Void> implements SyncTupleTa
             return;
         }
 
-        CustomRequest request = new CustomRequest(Request.Method.GET, Const.ProviderUrl + "/invoicePeriodes/" + mGroup.getGroupId(), new PeriodeResponseListener(), new ErrorListener(), null, null);
+        CustomRequest request = new CustomRequest(Request.Method.GET, Const.ProviderUrl + "/invoicePeriodes/" +  UserHandler.getGroupId(mContext), new PeriodeResponseListener(), new ErrorListener(), null, null);
         queue.add(request);
     }
 
@@ -124,7 +121,7 @@ public class TollTask extends AsyncTask<Void, Void, Void> implements SyncTupleTa
 
             for (int i = 0; i < periodes.length; i++) {
                 if (dbHelper.hasRemoteTupleInPeriode(periodes[i], i < periodes.length - 1 ? periodes[i + 1] : null)) {
-                    String url = Const.ProviderUrl + "/invoiceitems/" + mGroup.getGroupId() + "/" + periodes[i];
+                    String url = Const.ProviderUrl + "/invoiceitems/" + UserHandler.getGroupId(mContext) + "/" + periodes[i];
                     syncCount++;
                     CustomRequest request = new CustomRequest(Request.Method.GET, url, new ResponseListener(), new ErrorListener(), null, null);
                     queue.add(request);
@@ -161,7 +158,7 @@ public class TollTask extends AsyncTask<Void, Void, Void> implements SyncTupleTa
                 payment.setSumme(summe);
 
 
-                SignHelper.sign(mobileSecretKey, mGroup.getPublicKey(), HashHelper.getHash(payment), signature);
+                SignHelper.sign( UserHandler.getSecretKey(mContext), UserHandler.getPublicKey(mContext), HashHelper.getHash(payment), signature);
                 payment.setSignature(signature);
                 GsonBuilder builder = new GsonBuilder();
                 builder.registerTypeAdapter(BigInteger.class, new BigIntegerTypeAdapter());
