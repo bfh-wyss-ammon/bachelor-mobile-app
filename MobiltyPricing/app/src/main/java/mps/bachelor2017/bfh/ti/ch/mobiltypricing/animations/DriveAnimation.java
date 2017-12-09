@@ -1,4 +1,4 @@
-package mps.bachelor2017.bfh.ti.ch.mobiltypricing;
+package mps.bachelor2017.bfh.ti.ch.mobiltypricing.animations;
 
 import android.content.Context;
 import android.graphics.Canvas;
@@ -46,6 +46,10 @@ public class DriveAnimation extends View {
             drawables[ctr].start();
 
             ctr = ctr == 17 ? 0 : ctr + 1;
+            if(ctr > 0) {
+                postInvalidateDelayed(400);
+            }
         }
+
     }
 }

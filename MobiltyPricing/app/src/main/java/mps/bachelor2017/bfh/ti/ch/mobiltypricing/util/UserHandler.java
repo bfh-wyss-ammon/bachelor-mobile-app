@@ -55,7 +55,7 @@ public class UserHandler {
     public static MobilePublicKey getPublicKey(Context context) {
         if (publicKey == null) {
             SharedPreferences settings = context.getSharedPreferences(Const.PreferenceKey, 0);
-            MobilePublicKey publicKey = new MobilePublicKey();
+            publicKey = new MobilePublicKey();
             publicKey.setN(new BigInteger(settings.getString("publicKey_n", "0")));
             publicKey.setA(new BigInteger(settings.getString("publicKey_a", "0")));
             publicKey.setG(new BigInteger(settings.getString("publicKey_g", "0")));
@@ -85,7 +85,7 @@ public class UserHandler {
     public static MobileSecretKey getSecretKey(Context context) {
         if (secretKey == null) {
             SharedPreferences settings = context.getSharedPreferences(Const.PreferenceKey, 0);
-            MobileSecretKey secretKey = new MobileSecretKey();
+            secretKey = new MobileSecretKey();
             secretKey.setX(new BigInteger(settings.getString("secretKey_x", "0")));
             secretKey.setW(new BigInteger(settings.getString("secretKey_w", "0")));
             secretKey.setY(new BigInteger(settings.getString("secretKey_y", "0")));

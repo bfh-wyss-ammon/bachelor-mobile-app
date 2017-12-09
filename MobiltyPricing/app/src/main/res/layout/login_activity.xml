@@ -84,6 +84,13 @@
             android:layout_alignParentTop="true"
             android:text="@string/login"
             android:textColor="@color/text" />
+        <TextView
+            android:visibility="invisible"
+            android:id="@+id/errorMessage"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="@color/text"
+            android:text="@string/BackendConnectionError"/>
 
     </RelativeLayout>
 </LinearLayout>

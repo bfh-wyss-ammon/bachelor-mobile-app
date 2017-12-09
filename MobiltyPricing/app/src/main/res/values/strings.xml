@@ -17,4 +17,5 @@
     <string name="AccountId">ID</string>
     <string name="AccountPassword">PASSWORD</string>
     <string name="login">login</string>
+    <string name="BackendConnectionError">No Connection to backend. call support!</string>
 </resources>

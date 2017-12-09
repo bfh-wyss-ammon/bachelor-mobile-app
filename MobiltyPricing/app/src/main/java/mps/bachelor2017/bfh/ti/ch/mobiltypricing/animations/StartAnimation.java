@@ -1,4 +1,4 @@
-package mps.bachelor2017.bfh.ti.ch.mobiltypricing;
+package mps.bachelor2017.bfh.ti.ch.mobiltypricing.animations;
 
 import android.content.Context;
 import android.graphics.Canvas;
@@ -10,13 +10,15 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.widget.Toast;
 
+import mps.bachelor2017.bfh.ti.ch.mobiltypricing.R;
+
 /**
  * Created by Pascal on 18.11.2017.
  */
 
 public class StartAnimation extends View {
 
-    interface StartAnimationEvents {
+    public interface StartAnimationEvents {
         void onSubmit();
     }
 
@@ -37,9 +39,6 @@ public class StartAnimation extends View {
     public void setStartAnimationEvents(StartAnimationEvents startAnimationEvents) {
         this.mStartAnimationEvents = startAnimationEvents;
     }
-
-
-
 
     boolean started = false;
     public StartAnimation(Context context, AttributeSet attrs) {
@@ -64,7 +63,8 @@ public class StartAnimation extends View {
     @Override
     public boolean onTouchEvent(MotionEvent event) {
         super.onTouchEvent(event);
-        if(mSubmitted)
+
+        if(mSubmitted || mStartAnimationEvents == null)
             return false;
 
         switch (event.getAction()) {

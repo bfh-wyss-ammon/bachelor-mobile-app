@@ -21,8 +21,9 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <activity android:name=".InitActivity" android:parentActivityName=".MainActivity" android:theme="@android:style/Theme.Dialog" android:excludeFromRecents="true" android:noHistory="true">
-        </activity>
         <service android:name=".services.TrackService"></service>
+        <activity android:name=".LoginActivity" />
+        <activity android:name=".CheckInActivity" />
+        <activity android:name=".DriveActivity" />
     </application>
 </manifest>
