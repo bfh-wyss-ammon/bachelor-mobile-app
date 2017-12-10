@@ -21,9 +21,9 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <service android:name=".services.TrackService"></service>
-        <activity android:name=".LoginActivity" />
-        <activity android:name=".CheckInActivity" />
-        <activity android:name=".DriveActivity" />
+        <service android:name=".services.TrackService" />
+        <service android:name=".services.LoginService" />
+        <activity android:name=".LoginActivity" android:noHistory="true"/>
+        <activity android:name=".ErrorActivity" />
     </application>
 </manifest>

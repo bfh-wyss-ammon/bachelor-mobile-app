@@ -2,31 +2,20 @@ package mps.bachelor2017.bfh.ti.ch.mobiltypricing;
 
 import android.content.Context;
 import android.content.SharedPreferences;
-import android.support.annotation.NonNull;
 import android.support.test.InstrumentationRegistry;
 import android.support.test.runner.AndroidJUnit4;
-import android.util.Base64;
-import android.util.Log;
 
 import com.google.gson.Gson;
 
-import junit.framework.AssertionFailedError;
-
-import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
 import java.math.BigDecimal;
-import java.math.BigInteger;
 import java.math.RoundingMode;
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Set;
 
 import data.Tuple;
 import demo.DemoManagerKey;
@@ -39,11 +28,7 @@ import keys.SecretKey;
 import mps.bachelor2017.bfh.ti.ch.mobiltypricing.data.InvoiceItems;
 import mps.bachelor2017.bfh.ti.ch.mobiltypricing.data.MobileGroup;
 import mps.bachelor2017.bfh.ti.ch.mobiltypricing.data.MobileSecretKey;
-import mps.bachelor2017.bfh.ti.ch.mobiltypricing.data.MobileTuple;
-import mps.bachelor2017.bfh.ti.ch.mobiltypricing.tasks.TollTask;
 import mps.bachelor2017.bfh.ti.ch.mobiltypricing.util.Const;
-import mps.bachelor2017.bfh.ti.ch.mobiltypricing.util.DatabaseHelper;
-import mps.bachelor2017.bfh.ti.ch.mobiltypricing.util.Error;
 import requests.JoinRequest;
 import responses.JoinResponse;
 import util.Generator;
@@ -52,7 +37,6 @@ import util.JoinHelper;
 import util.SignHelper;
 import util.VerifyHelper;
 
-import static android.util.Base64.NO_WRAP;
 import static org.junit.Assert.*;
 import static org.junit.Assert.assertTrue;
 

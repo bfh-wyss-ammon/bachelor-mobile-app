@@ -5,47 +5,71 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/colorPrimaryDark"
-    android:orientation="vertical"
-    android:padding="8dp">
+    android:orientation="vertical">
 
-    <TableLayout
+    <android.support.percent.PercentRelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+        xmlns:app="http://schemas.android.com/apk/res-auto"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content">
+        android:layout_height="match_parent"
+        android:layout_margin="8dp">
 
-        <TableRow
+
+        <mps.bachelor2017.bfh.ti.ch.mobiltypricing.animations.DriveAnimation
+            android:id="@+id/MainActivityDriveAnimation"
+            android:visibility="invisible"
+            android:layout_height="wrap_content"
+            android:layout_alignParentTop="true"
+            android:layout_centerHorizontal="true"
+            app:layout_marginLeftPercent="25%"
+            app:layout_widthPercent="35%"
+            app:layout_marginTopPercent="10%"
+            app:srcCompat="@drawable/ic_track" />
+
+        <LinearLayout
+            android:id="@+id/MainActivityStatusArea"
             android:layout_width="match_parent"
-            android:layout_height="36dp">
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            app:layout_marginTopPercent="50%">
+            <ProgressBar
+                android:id="@+id/MainActivityProgressBar"
+                style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="match_parent"
+                android:layout_height="20dp"
+                android:max="3"
+                android:progress="0" />
 
-            <ImageButton
-                android:id="@+id/NetworkStatusButton"
-                android:layout_width="wrap_content"
-                android:layout_height="match_parent"
-                android:layout_weight="1"
-                android:background="@null"
-                android:minHeight="100dp"
-                android:padding="8dp"
-                android:scaleType="fitCenter"
-                app:srcCompat="@drawable/ic_network" />
+            <TextView
+                android:id="@+id/MainActivityTextUser"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Benutzerangaben"
+                android:textAlignment="center"
+                android:textColor="@color/colorPrimary" />
 
-            <ImageButton
-                android:id="@+id/GpsStatusButton"
-                android:layout_width="wrap_content"
-                android:layout_height="match_parent"
-                android:layout_weight="1"
-                android:background="@null"
-                android:minHeight="100dp"
-                android:padding="8dp"
-                android:scaleType="fitCenter"
-                app:srcCompat="@drawable/ic_positional_map" />
+            <TextView
+                android:id="@+id/MainActivityTextConnection"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Connection"
+                android:textAlignment="center"
+                android:textColor="@color/colorPrimary" />
 
-        </TableRow>
+            <TextView
+                android:id="@+id/MainActivityTextGps"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="GPS Permissions"
+                android:textAlignment="center"
+                android:textColor="@color/colorPrimary" />
+        </LinearLayout>
 
-    </TableLayout>
-
-    <android.support.constraint.ConstraintLayout
-        android:id="@+id/MainArea"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent">
-
-    </android.support.constraint.ConstraintLayout>
+        <mps.bachelor2017.bfh.ti.ch.mobiltypricing.animations.SlideAnimation
+            android:layout_alignParentBottom="true"
+            android:id="@+id/MainActivitySlideAnimation"
+            android:layout_width="match_parent"
+            android:visibility="invisible"
+            android:layout_height="50dp"
+            app:layout_marginBottomPercent="10%"/>
+    </android.support.percent.PercentRelativeLayout>
 </LinearLayout>

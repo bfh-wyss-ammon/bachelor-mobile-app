@@ -16,17 +16,19 @@ public class DriveAnimation extends View {
 
     int ctr = 0;
 
+    boolean simulate = false;
+
     public DriveAnimation(Context context, AttributeSet attrs) {
         super(context, attrs);
+
+        drawables = new AnimatedVectorDrawable[18];
+        for(int i = 0; i < 18; i++) {
+            drawables[i] = (AnimatedVectorDrawable) getContext().getDrawable(getResources().getIdentifier("ic_track_animation_"+i, "drawable", getContext().getPackageName()));
+        }
     }
 
     public void simulate() {
-        if(drawables == null) {
-            drawables = new AnimatedVectorDrawable[18];
-            for(int i = 0; i < 18; i++) {
-                drawables[i] = (AnimatedVectorDrawable) getContext().getDrawable(getResources().getIdentifier("ic_track_animation_"+i, "drawable", getContext().getPackageName()));
-            }
-        }
+        simulate = true;
         this.postInvalidate();
     }
 
@@ -39,16 +41,18 @@ public class DriveAnimation extends View {
     protected void onDraw(Canvas canvas) {
         // TODO Auto-generated method stub
         super.onDraw(canvas);
-        if (drawables != null) {
-            drawables[ctr].setBounds(0, 0, canvas.getWidth(), canvas.getHeight());
+        drawables[ctr].setBounds(0, 0, canvas.getWidth(), canvas.getHeight());
+        if (simulate) {
             drawables[ctr].draw(canvas);
-
             drawables[ctr].start();
 
             ctr = ctr == 17 ? 0 : ctr + 1;
             if(ctr > 0) {
-                postInvalidateDelayed(400);
+                postInvalidateDelayed(200);
             }
+        }
+        else {
+            drawables[0].draw(canvas);
         }
 
     }

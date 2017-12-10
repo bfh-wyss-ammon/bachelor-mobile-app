@@ -1,104 +1,255 @@
 package mps.bachelor2017.bfh.ti.ch.mobiltypricing;
 
 import android.Manifest;
+import android.content.ComponentName;
+import android.content.Context;
 import android.content.Intent;
-import android.graphics.drawable.AnimatedVectorDrawable;
+import android.content.ServiceConnection;
+import android.content.pm.PackageManager;
 import android.os.Bundle;
+import android.os.IBinder;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
-import android.widget.ImageButton;
+import android.support.v4.content.ContextCompat;
+import android.support.v7.app.AppCompatActivity;
+import android.transition.Slide;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
+import android.view.View;
+import android.widget.ProgressBar;
+import android.widget.TextView;
 
-import mps.bachelor2017.bfh.ti.ch.mobiltypricing.services.ConnectionEvents;
-import mps.bachelor2017.bfh.ti.ch.mobiltypricing.util.CustomAppCompatActivity;
+import com.android.volley.Request;
+import com.android.volley.RequestQueue;
+import com.android.volley.toolbox.Volley;
+
+import mps.bachelor2017.bfh.ti.ch.mobiltypricing.animations.DriveAnimation;
+import mps.bachelor2017.bfh.ti.ch.mobiltypricing.animations.SlideAnimation;
+import mps.bachelor2017.bfh.ti.ch.mobiltypricing.services.TrackService;
+import mps.bachelor2017.bfh.ti.ch.mobiltypricing.services.TrackServiceEvents;
+import mps.bachelor2017.bfh.ti.ch.mobiltypricing.util.Const;
+import mps.bachelor2017.bfh.ti.ch.mobiltypricing.util.CustomRequest;
 import mps.bachelor2017.bfh.ti.ch.mobiltypricing.util.UserHandler;
-
-import static android.support.v4.content.PermissionChecker.PERMISSION_DENIED;
-import static junit.framework.Assert.fail;
 
 /**
  * Created by Pascal on 06.10.2017.
  */
 
-public class MainActivity extends CustomAppCompatActivity implements ConnectionEvents {
+public class MainActivity extends AppCompatActivity implements ServiceConnection, SlideAnimation.SlideAnimationEvents, TrackServiceEvents {
+
+    private ProgressBar mMainActivityProgressBar;
+    private TextView mMainTextUser;
+    private TextView mMainTextGps;
+    private TextView mMainTextConnection;
+    private DriveAnimation mDriveAnimation;
+    private SlideAnimation mSlideAnimation;
+
+    private boolean hasUser;
+    private boolean hasGps;
+    private boolean hasConnection;
+    private TrackService mTrackService;
+    private int status = 0; // status == 3: hasUser = hasGps = hasConnection = true
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.main_activity);
 
-        this.mNetworkConnectionStatus = (ImageButton) findViewById(R.id.NetworkStatusButton);
-        this.mGpsStatus = (ImageButton) findViewById(R.id.GpsStatusButton);
-        this.gpsAnimatedVectorDrawable = (AnimatedVectorDrawable) getDrawable(R.drawable.ic_position_animated);
-        this.networkAnimatedVectorDrawable = (AnimatedVectorDrawable) getDrawable(R.drawable.ic_network_animated);
-
-        renderUserInterface();
+        mMainActivityProgressBar = (ProgressBar) findViewById(R.id.MainActivityProgressBar);
+        mMainTextUser = (TextView) findViewById(R.id.MainActivityTextUser);
+        mMainTextGps = (TextView) findViewById(R.id.MainActivityTextGps);
+        mMainTextConnection = (TextView) findViewById(R.id.MainActivityTextConnection);
+        mDriveAnimation = (DriveAnimation) findViewById(R.id.MainActivityDriveAnimation);
+        mSlideAnimation = (SlideAnimation) findViewById(R.id.MainActivitySlideAnimation);
     }
 
     @Override
-    protected void onServiceConnected() {
-        mTrackService.registerConnectionEvents(this);
-        mTrackService.checkPermissions();
-        runOnUiThread(this::renderUserInterface);
-    }
-
-    private void renderUserInterface() {
-        if(mTrackService == null || mTrackService.getGpsPermission() == -2) { // wait for service...
-            this.mGpsStatus.setImageDrawable(gpsAnimatedVectorDrawable);
-            this.gpsAnimatedVectorDrawable.start();
-        }
-        else {
-            if(mTrackService.getGpsPermission() == PERMISSION_DENIED) {
-                this.mGpsStatus.setImageResource(R.drawable.ic_positional_map_fail);
-            }
-            else {
-                this.mGpsStatus.setImageResource(R.drawable.ic_positional_map_oke);
-            }
-        }
-
-        if(mTrackService == null || mTrackService.getNetworkPermission() == -2) { // wait for service...
-            this.mNetworkConnectionStatus.setImageDrawable(networkAnimatedVectorDrawable);
-            this.networkAnimatedVectorDrawable.start();
-        }
-        else {
-            if(mTrackService.getNetworkPermission() == PERMISSION_DENIED) {
-                this.mNetworkConnectionStatus.setImageResource(R.drawable.ic_network_fail);
-            }
-            else {
-                this.mNetworkConnectionStatus.setImageResource(R.drawable.ic_network_oke);
-            }
-        }
+    public void onServiceConnected(ComponentName name, IBinder service) {
+        this.mTrackService = ((TrackService.TrackBinder) service).getService();
+        this.mTrackService.setCallbacks(this);
+        showCheckIn();
     }
 
     @Override
-    protected void onServiceDisconnected() {
-        // todo handle
-    }
-
-    @Override
-    public void onGpsPermissionMissing() {
-        ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, 1);
-    }
-
-    @Override
-    public void onNetworkPermissionMissing() {
-        ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.INTERNET}, 2);
-    }
-
-    @Override
-    public void onHasGpsAndNetworkPermission() {
-        Intent intent = new Intent(this, UserHandler.exist(getApplicationContext()) ? CheckInActivity.class : LoginActivity.class);
+    public void onServiceDisconnected(ComponentName name) {
+        Intent intent = new Intent(this, ErrorActivity.class);
+        intent.putExtra("message", "Error in MainActivity");
+        intent.putExtra("level", 0);
         startActivity(intent);
     }
 
     @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
-        for (int i = 0; i < permissions.length; i++) {
-            if(Manifest.permission.ACCESS_FINE_LOCATION.equals(permissions[i])) {
-               mTrackService.setGpsPermission(grantResults[i]);
+    protected void onStart() {
+        super.onStart();
+
+        if(mTrackService != null && mTrackService.isTracking()) {
+            return;
+        }
+
+        hasUser = false;
+        hasConnection = false;
+        hasGps = false;
+
+        if (!UserHandler.exist(getApplicationContext())) {
+            startActivity(new Intent(this, LoginActivity.class));
+        } else {
+            hasUser = true;
+            handleStatusUpdate();
+        }
+
+        if (ContextCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+            hasGps = true;
+            handleStatusUpdate();
+        }
+        else {
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, 1);
+        }
+
+        RequestQueue queue = Volley.newRequestQueue(getApplicationContext());
+
+        queue.add(new CustomRequest(Request.Method.GET, Const.ProviderUrl + "/status", response -> {
+            runOnUiThread(() -> {
+               hasConnection = true;
+               handleStatusUpdate();
+            });
+        }, error -> {
+            Intent intent = new Intent(this, ErrorActivity.class);
+            intent.putExtra("message", "Error in MainActivity");
+            intent.putExtra("messageDetail", " no connection to provider");
+            intent.putExtra("level", 0);
+            startActivity(intent);
+        }, null, null));
+    }
+
+    private void handleStatusUpdate() {
+        runOnUiThread(() -> {
+            status = 0;
+            if (hasUser) {
+                status += 1;
+                mMainTextUser.setTextColor(getColor(R.color.text));
             }
-            else if(Manifest.permission.INTERNET.equals(permissions[i])) {
-                mTrackService.setNetworkPermission(grantResults[i]);
+            if (hasConnection) {
+                status += 1;
+                mMainTextConnection.setTextColor(getColor(R.color.text));
+            }
+            if (hasGps) {
+                status += 1;
+                mMainTextGps.setTextColor(getColor(R.color.text));
+            }
+            mMainActivityProgressBar.setProgress(status);
+            if(status == 3) {
+                if(mTrackService == null) {
+                    Intent intent = new Intent(this, TrackService.class);
+                    bindService(intent, this, Context.BIND_AUTO_CREATE);
+                }
+                else {
+                    showCheckIn();
+                }
+            }
+            else if(mTrackService == null || !mTrackService.isTracking()) {
+                mDriveAnimation.setVisibility(View.INVISIBLE);
+                mSlideAnimation.setVisibility(View.INVISIBLE);
+            }
+        });
+    }
+
+    private synchronized void showCheckIn() {
+        mSlideAnimation.setVisibility(View.VISIBLE);
+        mSlideAnimation.registerCallbacks(this);
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        if(requestCode == 1) {
+            for (int i = 0; i < permissions.length; i++) {
+                if (Manifest.permission.ACCESS_FINE_LOCATION.equals(permissions[i])) {
+                    if (grantResults[i] != PackageManager.PERMISSION_GRANTED) {
+                        Intent intent = new Intent(this, ErrorActivity.class);
+                        intent.putExtra("message", "Error in MainActivity, missing gps permissions!");
+                        intent.putExtra("messageDetail", "go to the settings -> apps menu, select the app and give it gps permissions");
+                        intent.putExtra("level", 0);
+                        startActivity(intent);
+                    }
+                    else {
+                        hasGps = true;
+                        handleStatusUpdate();
+                    }
+                }
             }
         }
-        runOnUiThread(this::renderUserInterface);
     }
+
+    @Override
+    public void onSlideAnimationSubmit() {
+        mDriveAnimation.setVisibility(View.VISIBLE);
+        mSlideAnimation.setVisibility(View.INVISIBLE);
+        if(mTrackService.isTracking()) {
+            mTrackService.stop();
+        }
+        else {
+            mTrackService.start();
+        }
+    }
+
+    //region menu
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        MenuInflater inflater = getMenuInflater();
+        inflater.inflate(R.menu.main_menu, menu);
+        return true;
+    }
+
+    private void logout() {
+        UserHandler.clear(getApplicationContext());
+        startActivity(new Intent(this, LoginActivity.class));
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        // Handle item selection
+        switch (item.getItemId()) {
+            case R.id.logout:
+                logout();
+                break;
+            default:
+                return super.onOptionsItemSelected(item);
+        }
+        return true;
+    }
+
+    @Override
+    public void onGpsSignalReported() {
+        if (mTrackService.isTracking()) {
+            mDriveAnimation.simulate();
+            mMainTextGps.setText("GPS Permission / Signal");
+            mMainTextConnection.setText("Connection");
+            mMainTextConnection.setTextColor(getColor(R.color.text));
+            mMainTextGps.setTextColor(getColor(R.color.text));
+        }
+        if (mSlideAnimation.getVisibility() == View.INVISIBLE) {
+            mSlideAnimation.setVisibility(View.VISIBLE);
+            mSlideAnimation.reset();
+        }
+    }
+
+    @Override
+    public void onPayed() {
+        handleStatusUpdate();
+        mSlideAnimation.setVisibility(View.VISIBLE);
+        mSlideAnimation.reset();
+    }
+
+    @Override
+    public void missingGpsSignal(int timeUnityToFix) {
+        mMainTextGps.setTextColor(getColor(R.color.colorAccent3));
+        mMainTextGps.setText("GPS Permission / Signal, C:" + timeUnityToFix);
+    }
+
+    @Override
+    public void missingNetworkConnection(int timeUnityToFix) {
+        mMainTextConnection.setTextColor(getColor(R.color.colorAccent3));
+        mMainTextConnection.setText("Connection C:" + timeUnityToFix );
+    }
+    //endregion
 }

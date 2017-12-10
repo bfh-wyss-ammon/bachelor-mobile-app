@@ -11,36 +11,44 @@ import android.os.IBinder;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v4.app.ActivityCompat;
-import android.support.v4.content.ContextCompat;
-import android.support.v4.content.PermissionChecker;
 import android.util.Base64;
 import android.util.Log;
 
+import com.android.volley.Request;
+import com.android.volley.RequestQueue;
+import com.android.volley.VolleyError;
+import com.android.volley.toolbox.Volley;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.location.LocationListener;
 import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationServices;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 
 import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.math.RoundingMode;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.function.Function;
 
-import mps.bachelor2017.bfh.ti.ch.mobiltypricing.CheckInActivity;
-import mps.bachelor2017.bfh.ti.ch.mobiltypricing.LoginActivity;
+import gson.BigIntegerTypeAdapter;
+import mps.bachelor2017.bfh.ti.ch.mobiltypricing.ErrorActivity;
+import mps.bachelor2017.bfh.ti.ch.mobiltypricing.data.InvoiceItems;
+import mps.bachelor2017.bfh.ti.ch.mobiltypricing.data.MobileSignature;
 import mps.bachelor2017.bfh.ti.ch.mobiltypricing.data.MobileTuple;
-import mps.bachelor2017.bfh.ti.ch.mobiltypricing.tasks.SyncTupleTask;
-import mps.bachelor2017.bfh.ti.ch.mobiltypricing.tasks.TollTask;
+import mps.bachelor2017.bfh.ti.ch.mobiltypricing.data.Payment;
+import mps.bachelor2017.bfh.ti.ch.mobiltypricing.util.Const;
+import mps.bachelor2017.bfh.ti.ch.mobiltypricing.util.CustomRequest;
 import mps.bachelor2017.bfh.ti.ch.mobiltypricing.util.DatabaseHelper;
-import mps.bachelor2017.bfh.ti.ch.mobiltypricing.util.Error;
 import mps.bachelor2017.bfh.ti.ch.mobiltypricing.util.UserHandler;
 import util.HashHelper;
 import util.SignHelper;
 
-import static android.support.v4.content.PermissionChecker.PERMISSION_GRANTED;
 import static android.util.Base64.NO_WRAP;
 
 
@@ -48,7 +56,7 @@ import static android.util.Base64.NO_WRAP;
  * Created by Pascal on 13.10.2017.
  */
 
-public class TrackService extends Service implements GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener, LocationListener, SyncTupleTask.SendTupleTaskListener, TollTask.TollTaskListener {
+public class TrackService extends Service implements GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener, LocationListener {
 
     public class TrackBinder extends Binder {
         public TrackService getService() {
@@ -56,39 +64,44 @@ public class TrackService extends Service implements GoogleApiClient.ConnectionC
         }
     }
 
-    //used for check if run method is called for the first time
-    protected int warmUpCounter = 5;
+    protected int warmUpTime = 12 * 1000; //used for check if run method is called for the first time
+    protected long updateInterval = 10 * 1000;
     protected LocationRequest mLocationRequest;
     protected GoogleApiClient mGoogleApiClient;
-    protected long updateInterval = 10 * 1000;
+    private final IBinder mBinder = new TrackBinder();
+    private static final Gson gson = new Gson();
 
     private Timer timer;
     private Location mLastLocation;
+    private Location mNewLocation;
     private DatabaseHelper dbHelper;
-    private DriveEvents mEvent;
-    private final IBinder mBinder = new TrackBinder();
     private int syncCount = 0;
+    private int periodeSynCount = 0;
     private boolean isTracking = false;
+    private int gpsTimeUnityToFix = 5;
+    private int networkTimeUnityToFix = 5;
+    private RequestQueue queue;
+    private List<String> hashes;
 
-    private ConnectionEvents mConnectionEvents;
+    private TrackServiceEvents mTrackServiceEvents;
 
     @Override
     public void onCreate() {
-       setupApiConnection();
-       setupLocationRequest();
+                
+        setupApiConnection();
+        setupLocationRequest();
 
+        if(queue == null) {
+            queue = Volley.newRequestQueue(getApplicationContext());
+        }
         if (dbHelper == null) {
             dbHelper = new DatabaseHelper(getApplicationContext());
         }
     }
 
     //region Service Setup
-    public void setCallbacks(DriveEvents callbacks) {
-        mEvent = callbacks;
-    }
-
-    public void registerConnectionEvents(ConnectionEvents connectionEvents) {
-        mConnectionEvents = connectionEvents;
+    public void setCallbacks(TrackServiceEvents callbacks) {
+        mTrackServiceEvents = callbacks;
     }
 
     @Override
@@ -96,49 +109,8 @@ public class TrackService extends Service implements GoogleApiClient.ConnectionC
         LocationServices.FusedLocationApi.removeLocationUpdates(mGoogleApiClient, this);
     }
 
-    private int gpsPermission = -2;
-    private int networkPermission = -2;
-
-    public int getGpsPermission() {
-        return gpsPermission;
-    }
-
-    public void setGpsPermission(int gpsPermission) {
-        this.gpsPermission = gpsPermission;
-
-        if(mConnectionEvents != null && networkPermission == PERMISSION_GRANTED && gpsPermission == PERMISSION_GRANTED) {
-            mConnectionEvents.onHasGpsAndNetworkPermission();
-        }
-    }
-
-    public int getNetworkPermission() {
-        return networkPermission;
-    }
-
-    public void setNetworkPermission(int networkPermission) {
-        this.networkPermission = networkPermission;
-
-        if(mConnectionEvents != null && networkPermission == PERMISSION_GRANTED && gpsPermission == PERMISSION_GRANTED) {
-            mConnectionEvents.onHasGpsAndNetworkPermission();
-        }
-    }
-
-    public void checkPermissions() {
-        if (ContextCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && mConnectionEvents != null) {
-            // we try to get gps permission by activity
-            mConnectionEvents.onGpsPermissionMissing();
-        }
-        else {
-            setGpsPermission(ContextCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.ACCESS_FINE_LOCATION));
-        }
-
-        if (ContextCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.INTERNET) != PackageManager.PERMISSION_GRANTED && mConnectionEvents != null) {
-            // we try to get internet permission by activity
-            mConnectionEvents.onNetworkPermissionMissing();
-        }
-        else {
-            setNetworkPermission(ContextCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.INTERNET));
-        }
+    public boolean isTracking() {
+        return isTracking;
     }
 
     @Nullable
@@ -169,7 +141,7 @@ public class TrackService extends Service implements GoogleApiClient.ConnectionC
         if (mLocationRequest == null) {
             mLocationRequest = new LocationRequest();
             mLocationRequest.setInterval(updateInterval);
-            mLocationRequest.setFastestInterval(updateInterval);
+            mLocationRequest.setFastestInterval(updateInterval / 2);
             mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
         }
     }
@@ -185,101 +157,202 @@ public class TrackService extends Service implements GoogleApiClient.ConnectionC
     @Override
     public void onLocationChanged(Location location) {
         Log.v("TrackService", "new location time:" + location.getTime() + " latitude:" + location.getLatitude() + " longitude" + location.getLongitude());
-        mLastLocation = location;
+        mNewLocation = location;
     }
     //endregion
 
-    private void startLocationUpdates() {
-        if(mGoogleApiClient.isConnected() == false) {
-            mEvent.onError();
-            Log.v("TrackService", "can't start listening gps without connection to google api");
+    public boolean start() {
+        if (isTracking) {
+            return false;
         }
 
-        // the permission handling is handled by parent view
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-           mEvent.onError();
-            return;
+          Log.v("TrackService", "Missing GPS Permissions");
+          return false;
         }
         LocationServices.FusedLocationApi.requestLocationUpdates(mGoogleApiClient, mLocationRequest, this);
-    }
-
-    public void start() {
-        startLocationUpdates();
 
         timer = new Timer();
         timer.scheduleAtFixedRate(new TimerTask() {
             @Override
             public void run() {
-                if (mLastLocation == null) {
-                    if (warmUpCounter > 0) {
-                        warmUpCounter--;
-                    } else {
-                        mEvent.onGpsSignalError();
+                if (!isTracking) {
+                    return;
+                }
+                if(mNewLocation == null || mNewLocation == mLastLocation) {
+                    gpsTimeUnityToFix -= 1;
+                    mTrackServiceEvents.missingGpsSignal(gpsTimeUnityToFix);
+                    if(gpsTimeUnityToFix == 0) {
+                        Intent intent = new Intent(getApplicationContext(), ErrorActivity.class);
+                        intent.putExtra("message", "Error in TrackService!");
+                        intent.putExtra("messageDetail", "no gps signal");
+                        intent.putExtra("level", 0);
+                        startActivity(intent);
+                        isTracking = false;
                         timer.cancel();
                     }
                     return;
                 }
-
-                if (!isTracking) {
-                    isTracking = true;
+                else {
+                    gpsTimeUnityToFix = 5;
                 }
-                MobileTuple tuple = new MobileTuple(UserHandler.getGroupId(getApplicationContext()), new BigDecimal(mLastLocation.getLatitude()).setScale(10, RoundingMode.HALF_UP), new BigDecimal(mLastLocation.getLongitude()).setScale(10, RoundingMode.HALF_UP), new Date());
+
+
+
+                mLastLocation = mNewLocation;
+
+                MobileTuple tuple = new MobileTuple(UserHandler.getGroupId(getApplicationContext()), new BigDecimal(mNewLocation.getLatitude()).setScale(10, RoundingMode.HALF_UP), new BigDecimal(mNewLocation.getLongitude()).setScale(10, RoundingMode.HALF_UP), new Date());
                 byte[] hash = HashHelper.getHash(tuple);
                 SignHelper.sign(UserHandler.getSecretKey(getApplicationContext()), UserHandler.getPublicKey(getApplicationContext()), hash, tuple.getSignature());
-
                 tuple.setHash(Base64.encodeToString(hash, NO_WRAP));
 
                 if (!dbHelper.save(tuple)) {
                     isTracking = false;
-                    Log.v("TrackService", "Error while saving tuple");
-                    mEvent.onError();
                     timer.cancel();
+                    Intent intent = new Intent(getApplicationContext(), ErrorActivity.class);
+                    intent.putExtra("message", "Error in TrackService!");
+                    intent.putExtra("messageDetail", "can't save locally!");
+                    intent.putExtra("level", 0);
+                    startActivity(intent);
                     return;
                 }
-
-                mEvent.onGpsSignal();
-
-                if (syncCount == 0) {
-                    syncCount = -1;
-                    List<MobileTuple> tuples = dbHelper.getTuplesByStatus(MobileTuple.TupleStatus.LOCAL);
-                    syncCount = tuples.size();
-
-                    tuples.forEach(t -> {
-                        SyncTupleTask snycTupleTask = new SyncTupleTask(TrackService.this, getApplicationContext());
-                        snycTupleTask.execute(t);
-                    });
-                }
+                sendLocalTupleToProvider();
             }
-        }, 0, updateInterval);
+        }, warmUpTime, updateInterval);
+        isTracking = true;
+        return true;
     }
+
+    private synchronized void sendLocalTupleToProvider() {
+        if(syncCount > 0) {
+            return;
+        }
+        List<MobileTuple> tuples = dbHelper.getTuplesByStatus(MobileTuple.TupleStatus.LOCAL);
+        syncCount = tuples.size();
+
+        if(syncCount == 0 && !isTracking) {
+            pay();
+        }
+
+        
+
+        tuples.forEach(t -> {
+            CustomRequest request = new CustomRequest(Request.Method.POST, Const.ProviderUrl + "/tuples", response -> {
+                networkTimeUnityToFix = 5;
+                dbHelper.setTupleStatus(t.getHash(), MobileTuple.TupleStatus.REMOTE); 
+                mTrackServiceEvents.onGpsSignalReported();
+                syncCount -= 1;
+                if(syncCount == 0 && !isTracking) { // bezahlen
+                    pay();
+                }
+            }, this::onTupleSendError, null, t);
+            queue.add(request);
+        });
+    }
+
+    private void pay() {
+        hashes = new ArrayList<>();
+        queue.add( new CustomRequest(Request.Method.GET, Const.ProviderUrl + "/invoicePeriodes/" +  UserHandler.getGroupId(getApplicationContext()),
+                this::GetPeriodesSuccessful, this::GetPeriodesError, null, null));
+    }
+
+
+    private void GetPeriodesError(VolleyError volleyError) {
+        volleyError.printStackTrace();
+        Intent intent = new Intent(getApplicationContext(), ErrorActivity.class);
+        intent.putExtra("message", "Error in TrackService!");
+        intent.putExtra("messageDetail", "no periodes received!");
+        intent.putExtra("level", 0);
+        startActivity(intent);
+    }
+
+    private void GetPeriodesSuccessful(Object response) {
+        periodeSynCount = 0;
+        String[] periodes = gson.fromJson(response.toString(), String[].class);
+        for (int i = 0; i < periodes.length; i++) {
+            if (dbHelper.hasRemoteTupleInPeriode(periodes[i], i < periodes.length - 1 ? periodes[i + 1] : null)) {
+                String url = Const.ProviderUrl + "/invoiceitems/" + UserHandler.getGroupId(getApplicationContext()) + "/" + periodes[i];
+                periodeSynCount++;
+                CustomRequest request = new CustomRequest(Request.Method.GET, url, this::GetPeriodeSuccessful, this::GetPeriodeError, null, null);
+                queue.add(request);
+
+            }
+        }
+    }
+
+    private void GetPeriodeError(VolleyError volleyError) {
+        volleyError.printStackTrace();
+        Intent intent = new Intent(getApplicationContext(), ErrorActivity.class);
+        intent.putExtra("message", "Error in TrackService!");
+        intent.putExtra("messageDetail", "no periode received!");
+        intent.putExtra("level", 0);
+        startActivity(intent);
+    }
+
+    private void GetPeriodeSuccessful(Object response) {
+        InvoiceItems invoiceItems = gson.fromJson(response.toString(), InvoiceItems.class);
+
+        int summe = 0;
+        for (String hash : dbHelper.getTuplesHashesStatus(MobileTuple.TupleStatus.REMOTE)) {
+            if (invoiceItems.getItems().containsKey(hash)) {
+                summe += invoiceItems.getItems().get(hash);
+                hashes.add(hash);
+            }
+        }
+
+        MobileSignature signature = new MobileSignature();
+        Payment payment = new Payment();
+        payment.setSignatureOnTuples(invoiceItems.getSignature());
+        payment.setSumme(summe);
+
+        SignHelper.sign( UserHandler.getSecretKey(getApplicationContext()), UserHandler.getPublicKey(getApplicationContext()), HashHelper.getHash(payment), signature);
+        payment.setSignature(signature);
+        GsonBuilder builder = new GsonBuilder();
+        builder.registerTypeAdapter(BigInteger.class, new BigIntegerTypeAdapter());
+        CustomRequest request = new CustomRequest(Request.Method.POST,  Const.ProviderUrl + "/pay/" + invoiceItems.getSessionId(), this::PaySuccessful, this::PayError, null, payment);
+        queue.add(request);
+    }
+
+    private void PayError(VolleyError volleyError) {
+        Intent intent = new Intent(getApplicationContext(), ErrorActivity.class);
+        intent.putExtra("message", "Error in TrackService!");
+        intent.putExtra("messageDetail", "error during pay");
+        intent.putExtra("level", 0);
+        startActivity(intent);
+        isTracking = false;
+    }
+
+    private void PaySuccessful(Object o) {
+        hashes.forEach(hash -> dbHelper.setTupleStatus(hash, MobileTuple.TupleStatus.PAID));
+        periodeSynCount--;
+        if (periodeSynCount == 0) {
+           mTrackServiceEvents.onPayed();
+        }
+    }
+
+    private void onTupleSendError(VolleyError volleyError) {
+        Log.v("TrackService", "Error while sync tuples");
+        networkTimeUnityToFix -= 1;
+        mTrackServiceEvents.missingNetworkConnection(networkTimeUnityToFix);
+        syncCount = 0;
+        
+        if(gpsTimeUnityToFix == 0) {
+            Intent intent = new Intent(getApplicationContext(), ErrorActivity.class);
+            intent.putExtra("message", "Error in TrackService!");
+            intent.putExtra("messageDetail", "no connection to provider");
+            intent.putExtra("level", 0);
+            startActivity(intent);
+            isTracking = false;
+            timer.cancel();
+        }
+        volleyError.printStackTrace();
+    }
+
 
     public void stop() {
         LocationServices.FusedLocationApi.removeLocationUpdates(mGoogleApiClient, this);
         isTracking = false;
         timer.cancel();
-        TollTask tk = new TollTask(this, getApplicationContext());
-        tk.execute();
-    }
-
-    @Override
-    public void onTupleSendError() {
-        Log.v("TrackService", "Error while send tuple");
-    }
-
-    @Override
-    public synchronized void onTupleSendSuccessfull() {
-        syncCount--;
-        mEvent.onSend();
-    }
-
-    @Override
-    public synchronized void onTollError(Error error) {
-        Log.v("TrackService", "Error while toll");
-        mEvent.onError();
-    }
-
-    @Override
-    public void onTollSuccessfull() {
-        mEvent.onFinished();
+        sendLocalTupleToProvider();
     }
 }

@@ -2,7 +2,6 @@ package mps.bachelor2017.bfh.ti.ch.mobiltypricing.animations;
 
 import android.content.Context;
 import android.graphics.Canvas;
-import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.RectF;
 import android.util.AttributeSet;
@@ -16,10 +15,10 @@ import mps.bachelor2017.bfh.ti.ch.mobiltypricing.R;
  * Created by Pascal on 18.11.2017.
  */
 
-public class StartAnimation extends View {
+public class SlideAnimation extends View {
 
-    public interface StartAnimationEvents {
-        void onSubmit();
+    public interface SlideAnimationEvents {
+        void onSlideAnimationSubmit();
     }
 
     float xPos = -1;
@@ -34,14 +33,14 @@ public class StartAnimation extends View {
 
     boolean mSubmitted = false;
 
-    private StartAnimationEvents mStartAnimationEvents;
+    private SlideAnimationEvents mStartAnimationEvents;
 
-    public void setStartAnimationEvents(StartAnimationEvents startAnimationEvents) {
-        this.mStartAnimationEvents = startAnimationEvents;
+    public void registerCallbacks(SlideAnimationEvents slideAnimationEvents) {
+        this.mStartAnimationEvents = slideAnimationEvents;
     }
 
     boolean started = false;
-    public StartAnimation(Context context, AttributeSet attrs) {
+    public SlideAnimation(Context context, AttributeSet attrs) {
         super(context, attrs);
 
         pForeground = new Paint();
@@ -57,6 +56,12 @@ public class StartAnimation extends View {
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
         super.onMeasure(widthMeasureSpec, heightMeasureSpec);
+    }
+
+    public void reset() {
+        xPos = -1;
+        this.mSubmitted = false;
+        this.postInvalidate();
     }
 
 
@@ -101,7 +106,7 @@ public class StartAnimation extends View {
             width = canvas.getWidth();
             height = canvas.getHeight();
             cornerRadius = Math.round(height / 2);
-            xPos = cornerRadius;
+            xPos = height;
         }
         RectF rect = new RectF(0, 0, canvas.getWidth(), canvas.getHeight());
         canvas.drawRoundRect(rect, cornerRadius,cornerRadius, pBackground);
@@ -112,9 +117,8 @@ public class StartAnimation extends View {
                 rect = new RectF(0, 0, width, height);
                 canvas.drawRoundRect(rect, cornerRadius, cornerRadius, pSubmitted);
                 if(mStartAnimationEvents != null) {
-                    mStartAnimationEvents.onSubmit();
+                    mStartAnimationEvents.onSlideAnimationSubmit();
                 }
-                Toast.makeText(getContext(), "let's go", Toast.LENGTH_SHORT).show();
                 return;
             }
             else {
