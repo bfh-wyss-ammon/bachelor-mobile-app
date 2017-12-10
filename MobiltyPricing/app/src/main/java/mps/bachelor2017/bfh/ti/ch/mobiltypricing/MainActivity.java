@@ -235,21 +235,28 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
 
     @Override
     public void onPayed() {
-        handleStatusUpdate();
-        mSlideAnimation.setVisibility(View.VISIBLE);
-        mSlideAnimation.reset();
+        runOnUiThread(() -> {
+            handleStatusUpdate();
+            mSlideAnimation.setVisibility(View.VISIBLE);
+            mSlideAnimation.reset();
+
+        });
     }
 
     @Override
     public void missingGpsSignal(int timeUnityToFix) {
-        mMainTextGps.setTextColor(getColor(R.color.colorAccent3));
-        mMainTextGps.setText("GPS Permission / Signal, C:" + timeUnityToFix);
+        runOnUiThread(() -> {
+            mMainTextGps.setTextColor(getColor(R.color.colorAccent3));
+            mMainTextGps.setText("GPS Permission / Signal, C:" + timeUnityToFix);
+        });
     }
 
     @Override
     public void missingNetworkConnection(int timeUnityToFix) {
-        mMainTextConnection.setTextColor(getColor(R.color.colorAccent3));
-        mMainTextConnection.setText("Connection C:" + timeUnityToFix );
+        runOnUiThread(() -> {
+            mMainTextConnection.setTextColor(getColor(R.color.colorAccent3));
+            mMainTextConnection.setText("Connection C:" + timeUnityToFix );
+        });
     }
     //endregion
 }

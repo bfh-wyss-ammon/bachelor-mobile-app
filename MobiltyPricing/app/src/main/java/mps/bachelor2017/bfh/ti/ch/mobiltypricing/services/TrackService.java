@@ -87,7 +87,6 @@ public class TrackService extends Service implements GoogleApiClient.ConnectionC
 
     @Override
     public void onCreate() {
-                
         setupApiConnection();
         setupLocationRequest();
 
@@ -141,7 +140,7 @@ public class TrackService extends Service implements GoogleApiClient.ConnectionC
         if (mLocationRequest == null) {
             mLocationRequest = new LocationRequest();
             mLocationRequest.setInterval(updateInterval);
-            mLocationRequest.setFastestInterval(updateInterval / 2);
+            mLocationRequest.setFastestInterval(updateInterval);
             mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
         }
     }
