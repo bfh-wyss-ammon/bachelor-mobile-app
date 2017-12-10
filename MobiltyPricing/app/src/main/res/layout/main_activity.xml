@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/colorPrimaryDark"
+    android:orientation="vertical">
+
+    <android.support.percent.PercentRelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+        xmlns:app="http://schemas.android.com/apk/res-auto"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_margin="8dp">
+
+
+        <mps.bachelor2017.bfh.ti.ch.mobiltypricing.animations.DriveAnimation
+            android:id="@+id/MainActivityDriveAnimation"
+            android:visibility="invisible"
+            android:layout_height="wrap_content"
+            android:layout_alignParentTop="true"
+            android:layout_centerHorizontal="true"
+            app:layout_marginLeftPercent="25%"
+            app:layout_widthPercent="35%"
+            app:layout_marginTopPercent="10%"
+            app:srcCompat="@drawable/ic_track" />
+
+        <LinearLayout
+            android:id="@+id/MainActivityStatusArea"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            app:layout_marginTopPercent="50%">
+            <ProgressBar
+                android:id="@+id/MainActivityProgressBar"
+                style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="match_parent"
+                android:layout_height="20dp"
+                android:max="3"
+                android:progress="0" />
+
+            <TextView
+                android:id="@+id/MainActivityTextUser"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Benutzerangaben"
+                android:textAlignment="center"
+                android:textColor="@color/colorPrimary" />
+
+            <TextView
+                android:id="@+id/MainActivityTextConnection"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Connection"
+                android:textAlignment="center"
+                android:textColor="@color/colorPrimary" />
+
+            <TextView
+                android:id="@+id/MainActivityTextGps"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="GPS Permissions"
+                android:textAlignment="center"
+                android:textColor="@color/colorPrimary" />
+        </LinearLayout>
+
+        <mps.bachelor2017.bfh.ti.ch.mobiltypricing.animations.SlideAnimation
+            android:layout_alignParentBottom="true"
+            android:id="@+id/MainActivitySlideAnimation"
+            android:layout_width="match_parent"
+            android:visibility="invisible"
+            android:layout_height="50dp"
+            app:layout_marginBottomPercent="10%"/>
+    </android.support.percent.PercentRelativeLayout>
+</LinearLayout>

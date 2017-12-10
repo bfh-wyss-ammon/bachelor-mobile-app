@@ -23,16 +23,6 @@ public class MobileSecretKey implements SecretKey {
     public MobileSecretKey() {
     }
 
-    public MobileSecretKey(SharedPreferences settings) {
-        x = new BigInteger(settings.getString("secretKey_x", "0"));
-        w = new BigInteger(settings.getString("secretKey_w", "0"));
-        y = new BigInteger(settings.getString("secretKey_y", "0"));
-        e = new BigInteger(settings.getString("secretKey_e", "0"));
-        r = new BigInteger(settings.getString("secretKey_r", "0"));
-        bigE = new BigInteger(settings.getString("secretKey_bigE", "0"));
-        bigY = new BigInteger(settings.getString("secretKey_bigY", "0"));
-        commitment = new BigInteger(settings.getString("secretKey_commitment", "0"));
-    }
     @Override
     public BigInteger getX() {
         return x;
@@ -120,18 +110,5 @@ public class MobileSecretKey implements SecretKey {
         this.e = joinResponse.getE();
         this.y = joinResponse.getYi();
         this.w = joinResponse.getWi();
-    }
-
-    public void save(SharedPreferences settings) {
-        SharedPreferences.Editor editor = settings.edit();
-        editor.putString("secretKey_x", x.toString());
-        editor.putString("secretKey_w", w.toString());
-        editor.putString("secretKey_y", y.toString());
-        editor.putString("secretKey_e", e.toString());
-        editor.putString("secretKey_r", r.toString());
-        editor.putString("secretKey_bigE", bigE.toString());
-        editor.putString("secretKey_bigY", bigY.toString());
-        editor.putString("secretKey_commitment", commitment.toString());
-        editor.apply();
     }
 }

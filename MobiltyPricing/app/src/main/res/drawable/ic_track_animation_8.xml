@@ -1,0 +1,6 @@
+<animated-vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:drawable="@drawable/ic_track" >
+    <target
+        android:name="line8"
+        android:animation="@anim/path_morph" />
+</animated-vector>

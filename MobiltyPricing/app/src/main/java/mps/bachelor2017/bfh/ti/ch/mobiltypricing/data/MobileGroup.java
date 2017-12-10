@@ -14,11 +14,6 @@ public class MobileGroup {
 
     }
 
-    public MobileGroup(SharedPreferences settings) {
-        groupId = settings.getInt("groupId", -1);
-        publicKey = new MobilePublicKey(settings);
-    }
-
     public Integer getGroupId() {
         return groupId;
     }
@@ -33,12 +28,5 @@ public class MobileGroup {
 
     public void setPublicKey(MobilePublicKey publicKey) {
         this.publicKey = publicKey;
-    }
-
-    public void save(SharedPreferences settings) {
-        SharedPreferences.Editor editor = settings.edit();
-        editor.putInt("groupId", groupId);
-        editor.apply();
-        publicKey.save(settings);
     }
 }

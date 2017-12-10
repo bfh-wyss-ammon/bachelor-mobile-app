@@ -37,19 +37,6 @@ public class MobilePublicKey implements PublicKey, Serializable {
     public MobilePublicKey() {
     }
 
-    public MobilePublicKey(SharedPreferences settings) {
-        n = new BigInteger(settings.getString("publicKey_n", "0"));
-        a = new BigInteger(settings.getString("publicKey_a", "0"));
-        g = new BigInteger(settings.getString("publicKey_g", "0"));
-        h = new BigInteger(settings.getString("publicKey_h", "0"));
-        w = new BigInteger(settings.getString("publicKey_w", "0"));
-        bigQ = new BigInteger(settings.getString("publicKey_bigQ", "0"));
-        bigP = new BigInteger(settings.getString("publicKey_bigP", "0"));
-        bigF = new BigInteger(settings.getString("publicKey_bigF", "0"));
-        bigG = new BigInteger(settings.getString("publicKey_bigG", "0"));
-        bigH = new BigInteger(settings.getString("publicKey_bigH", "0"));
-    }
-
     @Override
     public BigInteger getN() {
         return n;
@@ -148,20 +135,5 @@ public class MobilePublicKey implements PublicKey, Serializable {
     @Override
     public void setBigH(BigInteger bigH) {
         this.bigH = bigH;
-    }
-
-    public void save(SharedPreferences settings) {
-        SharedPreferences.Editor editor = settings.edit();
-        editor.putString("publicKey_n", n.toString());
-        editor.putString("publicKey_a", a.toString());
-        editor.putString("publicKey_g", g.toString());
-        editor.putString("publicKey_h", h.toString());
-        editor.putString("publicKey_w", w.toString());
-        editor.putString("publicKey_bigQ", bigQ.toString());
-        editor.putString("publicKey_bigP", bigP.toString());
-        editor.putString("publicKey_bigF", bigF.toString());
-        editor.putString("publicKey_bigG", bigG.toString());
-        editor.putString("publicKey_bigH", bigH.toString());
-        editor.commit();
     }
 }

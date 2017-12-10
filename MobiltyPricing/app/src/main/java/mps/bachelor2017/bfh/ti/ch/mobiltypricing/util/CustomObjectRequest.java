@@ -43,7 +43,7 @@ public class CustomObjectRequest extends JsonObjectRequest {
         super(method, url, jsonRequest, listener, errorListener);
         this.token = token;
         this.bodyToSend = bodyToSend;
-        this.setRetryPolicy(new DefaultRetryPolicy(8000, 0, DefaultRetryPolicy.DEFAULT_BACKOFF_MULT));
+        this.setRetryPolicy(new DefaultRetryPolicy(20000, 0, DefaultRetryPolicy.DEFAULT_BACKOFF_MULT));
     }
 
     public CustomObjectRequest(String url, JSONObject jsonRequest, Response.Listener<JSONObject> listener, Response.ErrorListener errorListener, String token, Object bodyToSend) {
