@@ -35,6 +35,24 @@ public class UserHandler {
         return settings.getBoolean(Const.HasUserKey, false);
     }
 
+    public static void save(Context context, String providerKey) {
+        SharedPreferences settings = context.getSharedPreferences(Const.PreferenceKey, 0);
+        SharedPreferences.Editor editor = settings.edit();
+        editor.putString("providerKey",providerKey);
+        editor.apply();
+    }
+
+    private static String providerKey;
+
+    public static String getProviderKey(Context context) {
+        if (providerKey == null) {
+            SharedPreferences settings = context.getSharedPreferences(Const.PreferenceKey, 0);
+            providerKey = settings.getString("providerKey", "");
+        }
+        return providerKey;
+    }
+
+
     public static void save(Context context, MobileSecretKey secretKey, MobileGroup group) {
         SharedPreferences settings = context.getSharedPreferences(Const.PreferenceKey, 0);
         SharedPreferences.Editor editor = settings.edit();

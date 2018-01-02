@@ -19,12 +19,19 @@
 
 package mps.bachelor2017.bfh.ti.ch.mobiltypricing.util;
 
+import android.content.Context;
 import android.util.Base64;
 import android.util.Log;
 
 import java.nio.charset.StandardCharsets;
+import java.security.KeyFactory;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.security.PublicKey;
+import java.security.Signature;
+import java.security.spec.X509EncodedKeySpec;
+
+import static android.util.Base64.NO_WRAP;
 
 
 public class Helper {
@@ -47,4 +54,30 @@ public class Helper {
     public static byte[] getHashAsByte(String text) {
         return digest.digest(text.getBytes(StandardCharsets.UTF_8));
     }
+
+    public static boolean verifyProviderMessage(byte[] message, String signature, Context context) {
+
+
+        try {
+            Log.e("Helper - Signature", signature);
+            Log.e("Helper - message", Base64.encodeToString(message, NO_WRAP));
+            byte[] publicKeyEncoded =  Base64.decode(UserHandler.getProviderKey(context), NO_WRAP);
+            X509EncodedKeySpec pubKeySpec = new X509EncodedKeySpec(publicKeyEncoded);
+            KeyFactory keyFactory = KeyFactory.getInstance("DSA", "BC");
+            PublicKey pubKey = keyFactory.generatePublic(pubKeySpec);
+            Signature sig = Signature.getInstance("SHA256withDSA", "BC");
+            sig.initVerify(pubKey);
+            sig.update(message);
+            byte[] decode = Base64.decode(signature, NO_WRAP);
+            boolean verify = sig.verify(decode);
+            return true;
+
+        } catch (Exception ex) {
+            Log.e("Helper", ex.getMessage());
+            Log.e("Helper", "t", ex);
+            ex.printStackTrace();
+            return false;
+        }
+    }
+
 }

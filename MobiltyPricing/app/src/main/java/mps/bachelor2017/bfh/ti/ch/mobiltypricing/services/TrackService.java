@@ -71,6 +71,7 @@ import mps.bachelor2017.bfh.ti.ch.mobiltypricing.data.Payment;
 import mps.bachelor2017.bfh.ti.ch.mobiltypricing.util.Const;
 import mps.bachelor2017.bfh.ti.ch.mobiltypricing.util.CustomRequest;
 import mps.bachelor2017.bfh.ti.ch.mobiltypricing.util.DatabaseHelper;
+import mps.bachelor2017.bfh.ti.ch.mobiltypricing.util.Helper;
 import mps.bachelor2017.bfh.ti.ch.mobiltypricing.util.UserHandler;
 import util.HashHelper;
 import util.SignHelper;
@@ -382,10 +383,29 @@ public class TrackService extends Service implements GoogleApiClient.ConnectionC
     private void GetPeriodeSuccessful(Object response) {
         InvoiceItems invoiceItems = gson.fromJson(response.toString(), InvoiceItems.class);
 
+
+        if(!Helper.verifyProviderMessage(HashHelper.getHash(invoiceItems), invoiceItems.getSignature(), getApplicationContext())) {
+            Intent intent = new Intent(getApplicationContext(), ErrorActivity.class);
+            intent.putExtra("message", getString(R.string.PaymentError));
+            intent.putExtra("messageDetail", getString(R.string.PaymentSignatureErrorDesc));
+            intent.putExtra("level", 0);
+            startActivity(intent);
+            return;
+        }
+
         int summe = 0;
         for (String hash : dbHelper.getTuplesHashesStatus(MobileTuple.TupleStatus.REMOTE)) {
             if (invoiceItems.getItems().containsKey(hash)) {
-                summe += invoiceItems.getItems().get(hash);
+                int price = invoiceItems.getItems().get(hash);
+                if(price != 1) { // error!
+                    Intent intent = new Intent(getApplicationContext(), ErrorActivity.class);
+                    intent.putExtra("message", getString(R.string.PaymentError));
+                    intent.putExtra("messageDetail", getString(R.string.PaymentErrorDesc));
+                    intent.putExtra("level", 0);
+                    startActivity(intent);
+                    return;
+                }
+                summe += price;
                 hashes.add(hash);
             }
         }

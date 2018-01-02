@@ -29,6 +29,9 @@
     <string name="NoPeriodeReceived">Fehler beim Abbrechnen</string>
     <string name="ErrorWhilePay">Fehler beim Zahlen</string>
     <string name="PaymentReceived">Zahlung erhalten</string>
+    <string name="PaymentError">Fehler in der Preisfunktion</string>
+    <string name="PaymentErrorDesc">Falscher Preis von Provider erhalten</string>
+    <string name="PaymentSignatureErrorDesc">Signatur ungültig</string>
     <string name="ConnectionToProviderError">Keine Verbindung möglich</string>
     <string name="MoveToStart">ZUM STARTEN NACH</string>
     <string name="ToRight">RECHTS ZIEHEN</string>
