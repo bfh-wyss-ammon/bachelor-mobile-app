@@ -4,10 +4,10 @@ import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.RectF;
+import android.text.TextPaint;
 import android.util.AttributeSet;
 import android.view.MotionEvent;
 import android.view.View;
-import android.widget.Toast;
 
 import mps.bachelor2017.bfh.ti.ch.mobiltypricing.R;
 
@@ -17,40 +17,68 @@ import mps.bachelor2017.bfh.ti.ch.mobiltypricing.R;
 
 public class SlideAnimation extends View {
 
+    private enum Direction {
+        LeftToRight,
+        RightToLeft
+    }
+
+
     public interface SlideAnimationEvents {
-        void onSlideAnimationSubmit();
+        void onRightSubmit();
+        void onLeftSubmit();
     }
 
     float xPos = -1;
-
     int width;
     int height;
     int cornerRadius;
 
-    Paint pForeground;
-    Paint pBackground;
-    Paint pSubmitted;
+    int leftMax = -1;
+    int rightMax = -1;
 
-    boolean mSubmitted = false;
+    Paint pFingerCircle;
+    Paint pBackground;
+    Paint pLeftToRight;
+    Paint pRightToLeft;
+    Paint pWhite;
+    TextPaint pText;
+
+    Direction direction;
+
+    boolean started = false;
+
+    int yLine1;
+    int yLine2;
+    int xLine1;
+    int xLine2;
 
     private SlideAnimationEvents mStartAnimationEvents;
-
     public void registerCallbacks(SlideAnimationEvents slideAnimationEvents) {
         this.mStartAnimationEvents = slideAnimationEvents;
     }
 
-    boolean started = false;
     public SlideAnimation(Context context, AttributeSet attrs) {
         super(context, attrs);
 
-        pForeground = new Paint();
-        pForeground.setColor(getContext().getColor(R.color.colorPrimary));
+        pFingerCircle = new Paint();
+        pFingerCircle.setColor(getContext().getColor(R.color.colorPrimary));
+        pFingerCircle.setAntiAlias(true);
+        pFingerCircle.setShadowLayer(5.5f, 6.0f, 6.0f, 0x80000000);
 
         pBackground = new Paint();
         pBackground.setColor(getContext().getColor(R.color.colorAccent));
 
-        pSubmitted = new Paint();
-        pSubmitted.setColor(getContext().getColor(R.color.colorAccent3));
+        pLeftToRight = new Paint();
+        pLeftToRight.setColor(getContext().getColor(R.color.colorBorder));
+
+        pRightToLeft = new Paint();
+        pRightToLeft.setColor(getContext().getColor(R.color.colorAccent3));
+
+        pWhite = new Paint();
+        pWhite.setColor(getContext().getColor(R.color.text));
+        pText = new TextPaint(pWhite);
+
+        direction = Direction.LeftToRight;
     }
 
     @Override
@@ -58,43 +86,54 @@ public class SlideAnimation extends View {
         super.onMeasure(widthMeasureSpec, heightMeasureSpec);
     }
 
-    public void reset() {
-        xPos = -1;
-        this.mSubmitted = false;
-        this.postInvalidate();
-    }
-
-
     @Override
     public boolean onTouchEvent(MotionEvent event) {
         super.onTouchEvent(event);
 
-        if(mSubmitted || mStartAnimationEvents == null)
+        if(mStartAnimationEvents == null)
             return false;
 
         switch (event.getAction()) {
             case MotionEvent.ACTION_UP: {
                 started = false;
-                xPos = height;
+                xPos = 0;
                 invalidate();
                 return true;
             }
 
             case MotionEvent.ACTION_DOWN: {
-                if(event.getX() < height) {
-                    started = true;
+                started = direction == Direction.LeftToRight ? event.getX() <  + height : event.getX() >  - height;
+
+                if(started) {
                     xPos = event.getX();
                     invalidate();
                 }
             }
             case MotionEvent.ACTION_MOVE: {
                 if(started) {
-                    xPos = event.getX() > height ? event.getX() : height;
+                    xPos = event.getX();
                     invalidate();
                 }
                 return true;
             }
             default: return false;
+        }
+    }
+
+    private  RectF backgroundRect;
+    private RectF getBackgroundRect() {
+        if(backgroundRect == null) {
+            backgroundRect = new RectF(0, 0, width, height);
+        }
+        return backgroundRect;
+    }
+
+    private RectF getBackgroundOverlayRect() {
+        if(direction == Direction.LeftToRight) {
+            return new RectF(0, 0, xPos < leftMax ?leftMax + cornerRadius : xPos + cornerRadius, height);
+        }
+        else {
+            return new RectF(xPos > rightMax ? rightMax -cornerRadius : xPos - cornerRadius, 0, width, height);
         }
     }
 
@@ -106,26 +145,57 @@ public class SlideAnimation extends View {
             width = canvas.getWidth();
             height = canvas.getHeight();
             cornerRadius = Math.round(height / 2);
-            xPos = height;
+            leftMax = cornerRadius;
+            rightMax = width - cornerRadius;
+            pText.setTextSize( height / 6);
+            yLine1 = Math.round(height/2 - (pText.getTextSize() / 2 + 2));
+            yLine2 = Math.round(height/2 + (pText.getTextSize() / 2 + 2));
+            xLine1 = Math.round(xPos + cornerRadius * 2 + 5);
+            xLine2 = Math.round(xPos + cornerRadius * 2 + 5);
         }
-        RectF rect = new RectF(0, 0, canvas.getWidth(), canvas.getHeight());
-        canvas.drawRoundRect(rect, cornerRadius,cornerRadius, pBackground);
+        // background
+        canvas.drawRoundRect(getBackgroundRect(), cornerRadius,cornerRadius, pBackground);
+
+        if(direction == Direction.LeftToRight) {
+            canvas.drawText(getContext().getString(R.string.MoveToStart), xLine1, yLine1, pText);
+            canvas.drawText(getContext().getString(R.string.ToRight), xLine2, yLine2, pText);
+        }
+        else {
+            canvas.drawText(getContext().getString(R.string.MoveToStop),  xLine1, yLine1, pText);
+            canvas.drawText(getContext().getString(R.string.ToLeft),  xLine2, yLine2, pText);
+        }
 
         if(started) {
-            if(xPos > width -cornerRadius) {
-                mSubmitted = true;
-                rect = new RectF(0, 0, width, height);
-                canvas.drawRoundRect(rect, cornerRadius, cornerRadius, pSubmitted);
-                if(mStartAnimationEvents != null) {
-                    mStartAnimationEvents.onSlideAnimationSubmit();
+            boolean submitted = direction == Direction.LeftToRight ? xPos >= rightMax : xPos <= leftMax;
+
+            if(submitted) {
+
+                if(direction == Direction.LeftToRight) {
+                    xPos = rightMax;
+                    direction = Direction.RightToLeft;
+                    mStartAnimationEvents.onRightSubmit();
                 }
-                return;
+                else {
+                    xPos = leftMax;
+                    direction = Direction.LeftToRight;
+                    mStartAnimationEvents.onLeftSubmit();
+                }
+                started = false;
             }
             else {
-                rect = new RectF(0, 0, xPos, height);
-                canvas.drawRoundRect(rect, cornerRadius, cornerRadius, pForeground);
+                // background overlay
+                canvas.drawRoundRect(getBackgroundOverlayRect(), cornerRadius, cornerRadius, direction == Direction.LeftToRight ? pLeftToRight : pRightToLeft);
             }
         }
-        canvas.drawCircle( (xPos-cornerRadius < cornerRadius ? cornerRadius :xPos-cornerRadius), height / 2, cornerRadius, pForeground);
+
+        // finger pointer
+        float x = ((xPos > rightMax) || (xPos < leftMax)) ? ((direction == Direction.LeftToRight) ? leftMax : rightMax) : xPos;
+        canvas.drawCircle(x, cornerRadius, cornerRadius-5, pWhite);
+        canvas.drawCircle(x, cornerRadius, cornerRadius-25, pFingerCircle);
+
+        if(started) {
+            String text = direction == Direction.LeftToRight ? getContext().getString(R.string.Start) : getContext().getString(R.string.Stop);
+            canvas.drawText(text,  x - pText.measureText(text) / 2, height / 2, pText);
+        }
     }
 }

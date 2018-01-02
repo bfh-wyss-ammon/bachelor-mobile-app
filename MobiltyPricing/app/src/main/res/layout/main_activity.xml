@@ -26,7 +26,6 @@
             app:srcCompat="@drawable/ic_track" />
 
         <LinearLayout
-            android:id="@+id/MainActivityStatusArea"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
@@ -43,7 +42,7 @@
                 android:id="@+id/MainActivityTextUser"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Benutzerangaben"
+                android:text="@string/Benutzerangaben"
                 android:textAlignment="center"
                 android:textColor="@color/colorPrimary" />
 
@@ -51,7 +50,7 @@
                 android:id="@+id/MainActivityTextConnection"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Connection"
+                android:text="@string/Connection"
                 android:textAlignment="center"
                 android:textColor="@color/colorPrimary" />
 
@@ -59,7 +58,7 @@
                 android:id="@+id/MainActivityTextGps"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="GPS Permissions"
+                android:text="@string/GPSSignal"
                 android:textAlignment="center"
                 android:textColor="@color/colorPrimary" />
         </LinearLayout>
@@ -69,7 +68,7 @@
             android:id="@+id/MainActivitySlideAnimation"
             android:layout_width="match_parent"
             android:visibility="invisible"
-            android:layout_height="50dp"
+            android:layout_height="100dp"
             app:layout_marginBottomPercent="10%"/>
     </android.support.percent.PercentRelativeLayout>
 </LinearLayout>

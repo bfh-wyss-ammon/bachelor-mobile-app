@@ -24,14 +24,14 @@
                 android:layout_height="wrap_content"
                 android:textColor="@color/text"
                 android:textAlignment="center"
-                android:text="TextView" />
+                android:text="" />
             <TextView
                 android:id="@+id/ErrorActivityMessageDetail"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:textColor="@color/text"
                 android:textAlignment="center"
-                android:text="TextView" />
+                android:text="" />
         </LinearLayout>
     </android.support.percent.PercentRelativeLayout>
 </LinearLayout>

@@ -1,16 +1,22 @@
 package mps.bachelor2017.bfh.ti.ch.mobiltypricing.services;
 
 import android.Manifest;
+import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.location.Location;
 import android.os.Binder;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v4.app.ActivityCompat;
+import android.support.v4.app.NotificationCompat;
 import android.util.Base64;
 import android.util.Log;
 
@@ -34,10 +40,11 @@ import java.util.Date;
 import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
-import java.util.function.Function;
 
 import gson.BigIntegerTypeAdapter;
 import mps.bachelor2017.bfh.ti.ch.mobiltypricing.ErrorActivity;
+import mps.bachelor2017.bfh.ti.ch.mobiltypricing.MainActivity;
+import mps.bachelor2017.bfh.ti.ch.mobiltypricing.R;
 import mps.bachelor2017.bfh.ti.ch.mobiltypricing.data.InvoiceItems;
 import mps.bachelor2017.bfh.ti.ch.mobiltypricing.data.MobileSignature;
 import mps.bachelor2017.bfh.ti.ch.mobiltypricing.data.MobileTuple;
@@ -68,8 +75,10 @@ public class TrackService extends Service implements GoogleApiClient.ConnectionC
     protected long updateInterval = 10 * 1000;
     protected LocationRequest mLocationRequest;
     protected GoogleApiClient mGoogleApiClient;
+
     private final IBinder mBinder = new TrackBinder();
     private static final Gson gson = new Gson();
+    private static final String CHANNEL_ID = "channel_01";
 
     private Timer timer;
     private Location mLastLocation;
@@ -78,15 +87,36 @@ public class TrackService extends Service implements GoogleApiClient.ConnectionC
     private int syncCount = 0;
     private int periodeSynCount = 0;
     private boolean isTracking = false;
-    private int gpsTimeUnityToFix = 5;
-    private int networkTimeUnityToFix = 5;
+    private int gpsTimeUnityToFix = 10;
+    private int networkTimeUnityToFix = 10;
     private RequestQueue queue;
     private List<String> hashes;
 
     private TrackServiceEvents mTrackServiceEvents;
+    private NotificationManager mNotificationManager;
+
+    private static final int NOTIFICATION_ID = 12345678;
+    private boolean gpsStatus = true;
+    private boolean networkStatus = true;
+
 
     @Override
     public void onCreate() {
+
+
+        mNotificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+
+        // Android O requires a Notification Channel.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            CharSequence name = getString(R.string.AppName);
+            // Create the channel for the notification
+            NotificationChannel mChannel =
+                    new NotificationChannel(CHANNEL_ID, name, NotificationManager.IMPORTANCE_DEFAULT);
+
+            // Set the Notification Channel for the Notification Manager.
+            mNotificationManager.createNotificationChannel(mChannel);
+        }
+
         setupApiConnection();
         setupLocationRequest();
 
@@ -155,10 +185,42 @@ public class TrackService extends Service implements GoogleApiClient.ConnectionC
 
     @Override
     public void onLocationChanged(Location location) {
-        Log.v("TrackService", "new location time:" + location.getTime() + " latitude:" + location.getLatitude() + " longitude" + location.getLongitude());
+        //String message = "new location time:" + location.getTime() + " latitude:" + location.getLatitude() + " longitude" + location.getLongitude();
+        //Log.v("TrackService", message);
         mNewLocation = location;
     }
     //endregion
+
+    private Notification getNotification(boolean gps, boolean network) {
+        gpsStatus = gps;
+        networkStatus = network;
+        return getNotification(getString(R.string.GPS) + (gpsStatus ? "✔": "⊗" ) + ", " + getString(R.string.Network) + (networkStatus ? "✔" : "⊗"));
+    }
+    private Notification getNotification(String message) {
+        Intent intent = new Intent(this, TrackService.class);
+        // The PendingIntent that leads to a call to onStartCommand() in this service.
+        PendingIntent servicePendingIntent = PendingIntent.getService(this, 0, intent,
+                PendingIntent.FLAG_UPDATE_CURRENT);
+        // The PendingIntent to launch activity.
+        PendingIntent activityPendingIntent = PendingIntent.getActivity(this, 0,
+                new Intent(this, MainActivity.class), 0);
+
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(this)
+                .addAction(R.drawable.ic_positional_map_oke, getString(R.string.LaunchActivity),
+                        activityPendingIntent)
+                .setContentText(message)
+                .setContentTitle(getString(R.string.Driving))
+                .setOngoing(true)
+                .setSmallIcon(R.drawable.notification_icon)
+                .setWhen(System.currentTimeMillis());
+
+        // Set the Channel ID for Android O.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            builder.setChannelId(CHANNEL_ID); // Channel ID
+        }
+
+        return builder.build();
+    }
 
     public boolean start() {
         if (isTracking) {
@@ -169,6 +231,9 @@ public class TrackService extends Service implements GoogleApiClient.ConnectionC
           Log.v("TrackService", "Missing GPS Permissions");
           return false;
         }
+
+        startForeground(NOTIFICATION_ID, getNotification(true, true));
+
         LocationServices.FusedLocationApi.requestLocationUpdates(mGoogleApiClient, mLocationRequest, this);
 
         timer = new Timer();
@@ -179,12 +244,15 @@ public class TrackService extends Service implements GoogleApiClient.ConnectionC
                     return;
                 }
                 if(mNewLocation == null || mNewLocation == mLastLocation) {
+
+                    startForeground(NOTIFICATION_ID, getNotification(false, networkStatus));
+
                     gpsTimeUnityToFix -= 1;
                     mTrackServiceEvents.missingGpsSignal(gpsTimeUnityToFix);
                     if(gpsTimeUnityToFix == 0) {
                         Intent intent = new Intent(getApplicationContext(), ErrorActivity.class);
-                        intent.putExtra("message", "Error in TrackService!");
-                        intent.putExtra("messageDetail", "no gps signal");
+                        intent.putExtra("message", getString(R.string.ErrorInTrackService));
+                        intent.putExtra("messageDetail", getString(R.string.NoGpsSignal));
                         intent.putExtra("level", 0);
                         startActivity(intent);
                         isTracking = false;
@@ -193,6 +261,9 @@ public class TrackService extends Service implements GoogleApiClient.ConnectionC
                     return;
                 }
                 else {
+                    if(gpsTimeUnityToFix < 5) {
+                        startForeground(NOTIFICATION_ID, getNotification(true, networkStatus));
+                    }
                     gpsTimeUnityToFix = 5;
                 }
 
@@ -209,10 +280,11 @@ public class TrackService extends Service implements GoogleApiClient.ConnectionC
                     isTracking = false;
                     timer.cancel();
                     Intent intent = new Intent(getApplicationContext(), ErrorActivity.class);
-                    intent.putExtra("message", "Error in TrackService!");
-                    intent.putExtra("messageDetail", "can't save locally!");
+                    intent.putExtra("message", getString(R.string.ErrorInTrackService));
+                    intent.putExtra("messageDetail", getString(R.string.LocalSaveError));
                     intent.putExtra("level", 0);
                     startActivity(intent);
+                    startForeground(NOTIFICATION_ID, getNotification(getString(R.string.ErrorWhileSavingLocation)));
                     return;
                 }
                 sendLocalTupleToProvider();
@@ -237,6 +309,9 @@ public class TrackService extends Service implements GoogleApiClient.ConnectionC
 
         tuples.forEach(t -> {
             CustomRequest request = new CustomRequest(Request.Method.POST, Const.ProviderUrl + "/tuples", response -> {
+                if(!networkStatus) {
+                    startForeground(NOTIFICATION_ID, getNotification(gpsStatus, true));
+                }
                 networkTimeUnityToFix = 5;
                 dbHelper.setTupleStatus(t.getHash(), MobileTuple.TupleStatus.REMOTE); 
                 mTrackServiceEvents.onGpsSignalReported();
@@ -259,10 +334,12 @@ public class TrackService extends Service implements GoogleApiClient.ConnectionC
     private void GetPeriodesError(VolleyError volleyError) {
         volleyError.printStackTrace();
         Intent intent = new Intent(getApplicationContext(), ErrorActivity.class);
-        intent.putExtra("message", "Error in TrackService!");
-        intent.putExtra("messageDetail", "no periodes received!");
+        intent.putExtra("message", getString(R.string.ErrorInTrackService));
+        intent.putExtra("messageDetail", getString(R.string.MissingPeriodes));
         intent.putExtra("level", 0);
         startActivity(intent);
+
+        startForeground(NOTIFICATION_ID, getNotification(getString(R.string.ErrorWhilePaying)));
     }
 
     private void GetPeriodesSuccessful(Object response) {
@@ -282,8 +359,8 @@ public class TrackService extends Service implements GoogleApiClient.ConnectionC
     private void GetPeriodeError(VolleyError volleyError) {
         volleyError.printStackTrace();
         Intent intent = new Intent(getApplicationContext(), ErrorActivity.class);
-        intent.putExtra("message", "Error in TrackService!");
-        intent.putExtra("messageDetail", "no periode received!");
+        intent.putExtra("message", getString(R.string.ErrorInTrackService));
+        intent.putExtra("messageDetail", getString(R.string.NoPeriodeReceived));
         intent.putExtra("level", 0);
         startActivity(intent);
     }
@@ -314,8 +391,8 @@ public class TrackService extends Service implements GoogleApiClient.ConnectionC
 
     private void PayError(VolleyError volleyError) {
         Intent intent = new Intent(getApplicationContext(), ErrorActivity.class);
-        intent.putExtra("message", "Error in TrackService!");
-        intent.putExtra("messageDetail", "error during pay");
+        intent.putExtra("message", getString(R.string.ErrorInTrackService));
+        intent.putExtra("messageDetail", getString(R.string.ErrorWhilePay));
         intent.putExtra("level", 0);
         startActivity(intent);
         isTracking = false;
@@ -326,6 +403,7 @@ public class TrackService extends Service implements GoogleApiClient.ConnectionC
         periodeSynCount--;
         if (periodeSynCount == 0) {
            mTrackServiceEvents.onPayed();
+           startForeground(NOTIFICATION_ID, getNotification(getString(R.string.PaymentReceived)));
         }
     }
 
@@ -334,11 +412,13 @@ public class TrackService extends Service implements GoogleApiClient.ConnectionC
         networkTimeUnityToFix -= 1;
         mTrackServiceEvents.missingNetworkConnection(networkTimeUnityToFix);
         syncCount = 0;
+
+        startForeground(NOTIFICATION_ID, getNotification(gpsStatus, false));
         
         if(gpsTimeUnityToFix == 0) {
             Intent intent = new Intent(getApplicationContext(), ErrorActivity.class);
-            intent.putExtra("message", "Error in TrackService!");
-            intent.putExtra("messageDetail", "no connection to provider");
+            intent.putExtra("message", getString(R.string.ErrorInTrackService));
+            intent.putExtra("messageDetail", getString(R.string.ConnectionToProviderError));
             intent.putExtra("level", 0);
             startActivity(intent);
             isTracking = false;
