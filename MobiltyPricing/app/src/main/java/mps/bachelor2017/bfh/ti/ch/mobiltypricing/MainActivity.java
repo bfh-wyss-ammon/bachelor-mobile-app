@@ -12,7 +12,6 @@ import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
-import android.transition.Slide;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
@@ -30,6 +29,7 @@ import mps.bachelor2017.bfh.ti.ch.mobiltypricing.services.TrackService;
 import mps.bachelor2017.bfh.ti.ch.mobiltypricing.services.TrackServiceEvents;
 import mps.bachelor2017.bfh.ti.ch.mobiltypricing.util.Const;
 import mps.bachelor2017.bfh.ti.ch.mobiltypricing.util.CustomRequest;
+import mps.bachelor2017.bfh.ti.ch.mobiltypricing.util.DatabaseHelper;
 import mps.bachelor2017.bfh.ti.ch.mobiltypricing.util.UserHandler;
 
 /**
@@ -62,6 +62,9 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
         mMainTextConnection = (TextView) findViewById(R.id.MainActivityTextConnection);
         mDriveAnimation = (DriveAnimation) findViewById(R.id.MainActivityDriveAnimation);
         mSlideAnimation = (SlideAnimation) findViewById(R.id.MainActivitySlideAnimation);
+
+        Intent intent = new Intent(this, TrackService.class);
+        bindService(intent, this, Context.BIND_AUTO_CREATE);
     }
 
     @Override
@@ -74,7 +77,7 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
     @Override
     public void onServiceDisconnected(ComponentName name) {
         Intent intent = new Intent(this, ErrorActivity.class);
-        intent.putExtra("message", "Error in MainActivity");
+        intent.putExtra("message", getString(R.string.ErroInMainActivity));
         intent.putExtra("level", 0);
         startActivity(intent);
     }
@@ -115,8 +118,8 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
             });
         }, error -> {
             Intent intent = new Intent(this, ErrorActivity.class);
-            intent.putExtra("message", "Error in MainActivity");
-            intent.putExtra("messageDetail", " no connection to provider");
+            intent.putExtra("message", getString(R.string.ErroInMainActivity));
+            intent.putExtra("messageDetail", getString(R.string.NoConnectionToProvider));
             intent.putExtra("level", 0);
             startActivity(intent);
         }, null, null));
@@ -139,13 +142,7 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
             }
             mMainActivityProgressBar.setProgress(status);
             if(status == 3) {
-                if(mTrackService == null) {
-                    Intent intent = new Intent(this, TrackService.class);
-                    bindService(intent, this, Context.BIND_AUTO_CREATE);
-                }
-                else {
-                    showCheckIn();
-                }
+                showCheckIn();
             }
             else if(mTrackService == null || !mTrackService.isTracking()) {
                 mDriveAnimation.setVisibility(View.INVISIBLE);
@@ -166,8 +163,8 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
                 if (Manifest.permission.ACCESS_FINE_LOCATION.equals(permissions[i])) {
                     if (grantResults[i] != PackageManager.PERMISSION_GRANTED) {
                         Intent intent = new Intent(this, ErrorActivity.class);
-                        intent.putExtra("message", "Error in MainActivity, missing gps permissions!");
-                        intent.putExtra("messageDetail", "go to the settings -> apps menu, select the app and give it gps permissions");
+                        intent.putExtra("message", getString(R.string.MissingGPSPermissions));
+                        intent.putExtra("messageDetail", getString(R.string.MissingGpsPermissionDesc));
                         intent.putExtra("level", 0);
                         startActivity(intent);
                     }
@@ -181,15 +178,15 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
     }
 
     @Override
-    public void onSlideAnimationSubmit() {
+    public void onRightSubmit() {
         mDriveAnimation.setVisibility(View.VISIBLE);
-        mSlideAnimation.setVisibility(View.INVISIBLE);
-        if(mTrackService.isTracking()) {
-            mTrackService.stop();
-        }
-        else {
-            mTrackService.start();
-        }
+        mTrackService.start();
+    }
+
+    @Override
+    public void onLeftSubmit() {
+        mDriveAnimation.setVisibility(View.INVISIBLE);
+        mTrackService.stop();
     }
 
     //region menu
@@ -202,6 +199,7 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
 
     private void logout() {
         UserHandler.clear(getApplicationContext());
+        getApplication().deleteDatabase(DatabaseHelper.DATABASE_NAME);
         startActivity(new Intent(this, LoginActivity.class));
     }
 
@@ -222,14 +220,10 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
     public void onGpsSignalReported() {
         if (mTrackService.isTracking()) {
             mDriveAnimation.simulate();
-            mMainTextGps.setText("GPS Permission / Signal");
-            mMainTextConnection.setText("Connection");
+            mMainTextGps.setText(R.string.GpsPermissionOrSignal);
+            mMainTextConnection.setText(R.string.Connection);
             mMainTextConnection.setTextColor(getColor(R.color.text));
             mMainTextGps.setTextColor(getColor(R.color.text));
-        }
-        if (mSlideAnimation.getVisibility() == View.INVISIBLE) {
-            mSlideAnimation.setVisibility(View.VISIBLE);
-            mSlideAnimation.reset();
         }
     }
 
@@ -238,8 +232,6 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
         runOnUiThread(() -> {
             handleStatusUpdate();
             mSlideAnimation.setVisibility(View.VISIBLE);
-            mSlideAnimation.reset();
-
         });
     }
 
@@ -247,7 +239,7 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
     public void missingGpsSignal(int timeUnityToFix) {
         runOnUiThread(() -> {
             mMainTextGps.setTextColor(getColor(R.color.colorAccent3));
-            mMainTextGps.setText("GPS Permission / Signal, C:" + timeUnityToFix);
+            mMainTextGps.setText(getString(R.string.GpsPermissionErrorCount) + timeUnityToFix);
         });
     }
 
@@ -255,7 +247,7 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
     public void missingNetworkConnection(int timeUnityToFix) {
         runOnUiThread(() -> {
             mMainTextConnection.setTextColor(getColor(R.color.colorAccent3));
-            mMainTextConnection.setText("Connection C:" + timeUnityToFix );
+            mMainTextConnection.setText(getString(R.string.ConnectionErrorCount) + timeUnityToFix );
         });
     }
     //endregion

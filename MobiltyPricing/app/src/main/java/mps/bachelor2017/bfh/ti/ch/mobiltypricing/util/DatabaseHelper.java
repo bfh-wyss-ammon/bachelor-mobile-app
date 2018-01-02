@@ -28,7 +28,7 @@ import mps.bachelor2017.bfh.ti.ch.mobiltypricing.interfaces.DBField;
 
 public class DatabaseHelper extends SQLiteOpenHelper {
 
-    private static final String DATABASE_NAME = "SQLiteMobilityPricing.db";
+    public static final String DATABASE_NAME = "SQLiteMobilityPricing.db";
 
     private static final int DATABASE_VERSION = 1;
     private static final String TUPLE_TABLE_NAME = "tuple";

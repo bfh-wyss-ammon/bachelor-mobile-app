@@ -81,7 +81,7 @@ public class LoginActivity extends AppCompatActivity implements TextWatcher, Vie
     @Override
     public void onServiceDisconnected(ComponentName name) {
         Intent intent = new Intent(this, ErrorActivity.class);
-        intent.putExtra("message", "Error in LoginActivity");
+        intent.putExtra("message", getString(R.string.ErrorInLoginActivity));
         intent.putExtra("level", 0);
         startActivity(intent);
     }
@@ -123,7 +123,7 @@ public class LoginActivity extends AppCompatActivity implements TextWatcher, Vie
             startAnimate();
         } else {
             Intent intent = new Intent(this, ErrorActivity.class);
-            intent.putExtra("message", "Error in LoginActivity");
+            intent.putExtra("message", getString(R.string.ErrorInLoginActivity));
             intent.putExtra("level", 0);
             startActivity(intent);
         }
@@ -132,17 +132,15 @@ public class LoginActivity extends AppCompatActivity implements TextWatcher, Vie
     @Override
     public void onError(VolleyError error) {
         if(error instanceof AuthFailureError) {
-            Toast.makeText(getApplicationContext(), "password or id is wrong. try again", Toast.LENGTH_SHORT).show();
+            Toast.makeText(getApplicationContext(), R.string.PasswordWrong, Toast.LENGTH_SHORT).show();
             stopAnimate();
         }
         else {
             Intent intent = new Intent(this, ErrorActivity.class);
-            intent.putExtra("message", "Error in LoginActivity");
+            intent.putExtra("message", getString(R.string.ErrorInLoginActivity));
             if(error instanceof ServerError) {
-                intent.putExtra("messageDetail", "look like you are loggedIn on an other device, or you were logged in on this device before.");
+                intent.putExtra("messageDetail", getString(R.string.AlreadyLoggedIn));
             }
-
-
             intent.putExtra("level", 0);
             startActivity(intent);
             finish();
