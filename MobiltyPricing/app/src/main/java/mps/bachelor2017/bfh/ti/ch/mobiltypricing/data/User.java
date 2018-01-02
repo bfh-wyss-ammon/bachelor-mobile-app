@@ -1,8 +1,6 @@
-package mps.bachelor2017.bfh.ti.ch.mobiltypricing.data;
 
-/**
- * Created by Pascal on 29.09.2017.
- */
+
+package mps.bachelor2017.bfh.ti.ch.mobiltypricing.data;
 
 public class User {
     private String id;
