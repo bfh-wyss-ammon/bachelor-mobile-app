@@ -21,7 +21,7 @@ package mps.bachelor2017.bfh.ti.ch.mobiltypricing.services;
 
 public interface TrackServiceEvents {
     void onGpsSignalReported();
-    void onPayed();
+    void onPayed(int sum);
     void missingGpsSignal(int timeUnityToFix); // timeUnityToFix: is a countdown to zero, starting at 5.
     void missingNetworkConnection(int timeUnityToFix); // timeUnityToFix: is a countdown to zero, starting at 5.
 }

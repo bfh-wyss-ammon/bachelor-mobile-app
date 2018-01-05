@@ -89,6 +89,7 @@ public class LoginActivity extends AppCompatActivity implements TextWatcher, Vie
     public void onServiceConnected(ComponentName name, IBinder service) {
         this.mLoginService = ((LoginService.LoginBinder) service).getService();
         this.mLoginService.registerCallbacks(this);
+        this.mLoginService.loadProviderKey();
         stopAnimate();
     }
 

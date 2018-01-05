@@ -4,6 +4,7 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.support.test.InstrumentationRegistry;
 import android.support.test.runner.AndroidJUnit4;
+import android.util.Log;
 
 import com.google.gson.Gson;
 
@@ -11,11 +12,16 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 
 import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.math.RoundingMode;
+import java.security.Provider;
+import java.security.Security;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
 import data.Tuple;
 import demo.DemoManagerKey;
@@ -29,6 +35,7 @@ import mps.bachelor2017.bfh.ti.ch.mobiltypricing.data.InvoiceItems;
 import mps.bachelor2017.bfh.ti.ch.mobiltypricing.data.MobileGroup;
 import mps.bachelor2017.bfh.ti.ch.mobiltypricing.data.MobileSecretKey;
 import mps.bachelor2017.bfh.ti.ch.mobiltypricing.util.Const;
+import mps.bachelor2017.bfh.ti.ch.mobiltypricing.util.Helper;
 import requests.JoinRequest;
 import responses.JoinResponse;
 import util.Generator;
@@ -64,65 +71,90 @@ public class ExampleInstrumentedTest {
         assertNotNull(z);
     }
 
+//    @Test
+//    public void TollTest() {
+//        SharedPreferences settings = InstrumentationRegistry.getTargetContext().getSharedPreferences(Const.PreferenceKey, 0);
+//
+//        PublicKey pk =  new MobileGroup(settings).getPublicKey();
+//        SecretKey sk = new MobileSecretKey(settings);
+//
+//        Tuple a = new Tuple();
+//        Date d = new Date();
+//
+//        a.setLatitude(new BigDecimal("9").setScale(10, RoundingMode.HALF_UP));
+//        a.setLongitude(new BigDecimal("8").setScale(10, RoundingMode.HALF_UP));
+//        a.setCreated(d);
+//
+//
+//        byte[] testmessage = HashHelper.getHash(a);
+//
+//        a.setLongitude(new BigDecimal("10").setScale(10, RoundingMode.HALF_UP));
+//        byte[] testmessage2 = HashHelper.getHash(a);
+//
+//        DemoSignature signature = new DemoSignature();
+//        SignHelper.sign(sk, pk, testmessage, signature);
+//
+//
+////
+////
+////        TollTask task = new TollTask(new TollTask.TollTaskListener() {
+////            @Override
+////            public void onTollError(Error error) {
+////                assertTrue(false);
+////            }
+////
+////            @Override
+////            public void onTollSuccessfull() {
+////                assertTrue(true);
+////            }
+////        }, InstrumentationRegistry.getTargetContext(), new MobileGroup(settings),new MobileSecretKey(settings));
+////
+////        task.execute();
+////
+////        while(!task.isCancelled()) {
+////            try {
+////                Thread.sleep(100);
+////            } catch (InterruptedException e) {
+////                e.printStackTrace();
+////            }
+////        }
+//    }
+
     @Test
-    public void TollTest() {
-        SharedPreferences settings = InstrumentationRegistry.getTargetContext().getSharedPreferences(Const.PreferenceKey, 0);
-
-        PublicKey pk =  new MobileGroup(settings).getPublicKey();
-        SecretKey sk = new MobileSecretKey(settings);
-
-        Tuple a = new Tuple();
-        Date d = new Date();
-
-        a.setLatitude(new BigDecimal("9").setScale(10, RoundingMode.HALF_UP));
-        a.setLongitude(new BigDecimal("8").setScale(10, RoundingMode.HALF_UP));
-        a.setCreated(d);
+    public void SecGroup() {
+        Provider[] providers = Security.getProviders();
+        for (Provider provider : providers) {
+            Log.i("CRYPTO","provider: "+provider.getName());
+            Set<Provider.Service> services = provider.getServices();
+            for (Provider.Service service : services) {
+                Log.i("CRYPTO","  algorithm: "+service.getAlgorithm());
+            }
+        }
+    }
 
 
-        byte[] testmessage = HashHelper.getHash(a);
 
-        a.setLongitude(new BigDecimal("10").setScale(10, RoundingMode.HALF_UP));
-        byte[] testmessage2 = HashHelper.getHash(a);
-
-        DemoSignature signature = new DemoSignature();
-        SignHelper.sign(sk, pk, testmessage, signature);
+    @Test
+    public void VerifyTest() {
+        String signature = "MD4CHQCQJnB+SIVC+vvT/7sHdl0oM8Rmw4nA2W7HQcnkAh0AmEF7zQwFp4AB4aO2QyBAioJx3naIeEHU56at9A==";
+        String messageTxt = "YrrZNmpHRGoJVcKvLlQfORNwNZRswJu7cPBEETDRI7M=";
 
 
-//
-//
-//        TollTask task = new TollTask(new TollTask.TollTaskListener() {
-//            @Override
-//            public void onTollError(Error error) {
-//                assertTrue(false);
-//            }
-//
-//            @Override
-//            public void onTollSuccessfull() {
-//                assertTrue(true);
-//            }
-//        }, InstrumentationRegistry.getTargetContext(), new MobileGroup(settings),new MobileSecretKey(settings));
-//
-//        task.execute();
-//
-//        while(!task.isCancelled()) {
-//            try {
-//                Thread.sleep(100);
-//            } catch (InterruptedException e) {
-//                e.printStackTrace();
-//            }
-//        }
+
+
+       boolean res = Helper.verifyProviderMessage(Base64.getDecoder().decode(messageTxt), signature, InstrumentationRegistry.getTargetContext());
     }
 
     @Test
     public void SerializeTest() {
         InvoiceItems invoiceItems = new InvoiceItems();
 
-        Map<String, Integer> items = new HashMap<String, Integer>();
+        Map<String, BigInteger> items = new HashMap<String, BigInteger>();
 
-        items.put("hash", 2);
-        items.put("hash2", 2);
-        items.put("hash3", 2);
-        items.put("hash4", 2);
+        items.put("hash", new BigInteger("2"));
+        items.put("hash2", new BigInteger("2"));
+        items.put("hash3", new BigInteger("2"));
+        items.put("hash4", new BigInteger("2"));
 
         invoiceItems.setItems(items);
 

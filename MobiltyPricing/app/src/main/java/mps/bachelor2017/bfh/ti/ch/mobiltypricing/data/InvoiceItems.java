@@ -22,11 +22,17 @@ package mps.bachelor2017.bfh.ti.ch.mobiltypricing.data;
 
 import java.util.Map;
 
-public class InvoiceItems {
+import interfaces.HashValue;
 
+public class InvoiceItems {
+    @HashValue
     private Map<String, Integer> items;
+
     private String signature;
+
+    @HashValue
     private String sessionId;
+
 
     public InvoiceItems() {
 

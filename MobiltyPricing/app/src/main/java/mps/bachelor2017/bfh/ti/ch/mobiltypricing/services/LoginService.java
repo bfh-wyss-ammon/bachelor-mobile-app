@@ -31,6 +31,7 @@ import com.android.volley.Request;
 import com.android.volley.RequestQueue;
 import com.android.volley.Response;
 import com.android.volley.VolleyError;
+import com.android.volley.toolbox.StringRequest;
 import com.android.volley.toolbox.Volley;
 import com.google.gson.Gson;
 
@@ -80,6 +81,19 @@ public class LoginService extends Service {
 
     public void registerCallbacks(LoginEvents loginEvents) {
         mLoginEvents = loginEvents;
+    }
+
+    public void loadProviderKey() {
+        queue.add( new StringRequest(Request.Method.GET, Const.AuthorityApiUrl + "/providerpublickey", this::onProviderKeySuccessful, this::onProviderKeyError));
+    }
+
+    private void onProviderKeySuccessful(String key) {
+        UserHandler.save(getApplicationContext(), key);
+    }
+    private void onProviderKeyError(VolleyError volleyError) {
+        Log.v("LoginSevice", "error in Post [/providerpublickey");
+        volleyError.printStackTrace();
+        mLoginEvents.onError(volleyError);
     }
 
     public boolean startLogin(User user) {

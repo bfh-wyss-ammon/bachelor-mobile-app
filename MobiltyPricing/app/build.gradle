@@ -18,10 +18,7 @@ android {
         }
     }
     defaultConfig {
-        jackOptions {
-            enabled true
-            additionalParameters('jack.incremental': 'true')
-        }
+        multiDexEnabled true
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
@@ -41,6 +38,5 @@ dependencies {
     compile 'com.google.code.gson:gson:2.8.0'
     compile 'com.android.support:percent:26.1.0'
     testCompile 'junit:junit:4.12'
-    compile files('libs/CryptographyLibrary-0.0.1-SNAPSHOT.jar')
 
 }
