@@ -149,12 +149,12 @@ public class ExampleInstrumentedTest {
     public void SerializeTest() {
         InvoiceItems invoiceItems = new InvoiceItems();
 
-        Map<String, Integer> items = new HashMap<String, Integer>();
+        Map<String, BigInteger> items = new HashMap<String, BigInteger>();
 
-        items.put("hash", 2);
-        items.put("hash2", 2);
-        items.put("hash3", 2);
-        items.put("hash4", 2);
+        items.put("hash", new BigInteger("2"));
+        items.put("hash2", new BigInteger("2"));
+        items.put("hash3", new BigInteger("2"));
+        items.put("hash4", new BigInteger("2"));
 
         invoiceItems.setItems(items);
 
