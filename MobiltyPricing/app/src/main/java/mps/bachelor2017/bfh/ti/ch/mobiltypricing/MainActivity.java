@@ -36,6 +36,7 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.ProgressBar;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.android.volley.Request;
 import com.android.volley.RequestQueue;
@@ -243,10 +244,11 @@ public class MainActivity extends AppCompatActivity implements ServiceConnection
     }
 
     @Override
-    public void onPayed() {
+    public void onPayed(int sum) {
         runOnUiThread(() -> {
             handleStatusUpdate();
             mSlideAnimation.setVisibility(View.VISIBLE);
+            Toast.makeText(this.getApplicationContext(), getString(R.string.PaymentReceived) + " " + sum, Toast.LENGTH_SHORT).show();
         });
     }
 

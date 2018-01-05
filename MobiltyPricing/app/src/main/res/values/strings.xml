@@ -28,7 +28,7 @@
     <string name="ErrorWhilePaying">Fehler beim Abbrechnen</string>
     <string name="NoPeriodeReceived">Fehler beim Abbrechnen</string>
     <string name="ErrorWhilePay">Fehler beim Zahlen</string>
-    <string name="PaymentReceived">Zahlung erhalten</string>
+    <string name="PaymentReceived">Zahlung erhalten, Betrag:</string>
     <string name="PaymentError">Fehler in der Preisfunktion</string>
     <string name="PaymentErrorDesc">Falscher Preis von Provider erhalten</string>
     <string name="PaymentSignatureErrorDesc">Signatur ungültig</string>
@@ -41,4 +41,5 @@
     <string name="Stop">STOP</string>
     <string name="GPSSignal">GPS-Signal</string>
     <string name="Benutzerangaben">Benutzerangaben</string>
+    <string name="DriveDone">Fahrt beendet</string>
 </resources>

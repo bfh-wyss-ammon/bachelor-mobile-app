@@ -114,6 +114,8 @@ public class TrackService extends Service implements GoogleApiClient.ConnectionC
     private boolean gpsStatus = true;
     private boolean networkStatus = true;
 
+    private int sum = -1;
+
 
     @Override
     public void onCreate() {
@@ -212,6 +214,10 @@ public class TrackService extends Service implements GoogleApiClient.ConnectionC
         return getNotification(getString(R.string.GPS) + (gpsStatus ? "✔": "⊗" ) + ", " + getString(R.string.Network) + (networkStatus ? "✔" : "⊗"));
     }
     private Notification getNotification(String message) {
+        return getNotification(getString(R.string.Driving), message);
+    }
+
+    private Notification getNotification(String title, String message) {
         Intent intent = new Intent(this, TrackService.class);
         // The PendingIntent that leads to a call to onStartCommand() in this service.
         PendingIntent servicePendingIntent = PendingIntent.getService(this, 0, intent,
@@ -224,7 +230,7 @@ public class TrackService extends Service implements GoogleApiClient.ConnectionC
                 .addAction(R.drawable.ic_positional_map_oke, getString(R.string.LaunchActivity),
                         activityPendingIntent)
                 .setContentText(message)
-                .setContentTitle(getString(R.string.Driving))
+                .setContentTitle(title)
                 .setOngoing(true)
                 .setSmallIcon(R.drawable.notification_icon)
                 .setWhen(System.currentTimeMillis());
@@ -392,8 +398,8 @@ public class TrackService extends Service implements GoogleApiClient.ConnectionC
             startActivity(intent);
             return;
         }
+        sum = 0;
 
-        int summe = 0;
         for (String hash : dbHelper.getTuplesHashesStatus(MobileTuple.TupleStatus.REMOTE)) {
             if (invoiceItems.getItems().containsKey(hash)) {
                 int price = invoiceItems.getItems().get(hash);
@@ -405,7 +411,7 @@ public class TrackService extends Service implements GoogleApiClient.ConnectionC
                     startActivity(intent);
                     return;
                 }
-                summe += price;
+                sum += price;
                 hashes.add(hash);
             }
         }
@@ -413,7 +419,7 @@ public class TrackService extends Service implements GoogleApiClient.ConnectionC
         MobileSignature signature = new MobileSignature();
         Payment payment = new Payment();
         payment.setSignatureOnTuples(invoiceItems.getSignature());
-        payment.setSumme(summe);
+        payment.setSumme(sum);
 
         SignHelper.sign( UserHandler.getSecretKey(getApplicationContext()), UserHandler.getPublicKey(getApplicationContext()), HashHelper.getHash(payment), signature);
         payment.setSignature(signature);
@@ -436,8 +442,8 @@ public class TrackService extends Service implements GoogleApiClient.ConnectionC
         hashes.forEach(hash -> dbHelper.setTupleStatus(hash, MobileTuple.TupleStatus.PAID));
         periodeSynCount--;
         if (periodeSynCount == 0) {
-           mTrackServiceEvents.onPayed();
-           startForeground(NOTIFICATION_ID, getNotification(getString(R.string.PaymentReceived)));
+           mTrackServiceEvents.onPayed(sum);
+           startForeground(NOTIFICATION_ID, getNotification(getString(R.string.DriveDone), getString(R.string.PaymentReceived) + " " + sum));
         }
     }
 
